@@ -19,6 +19,7 @@ type frame struct {
 	// join-order
 	aborted bool
 	cost    string
+	costs   []string // the cost after each position, from the last "Best so far" block
 
 	// run: the hash of its normalised text, kept as the lines pass
 	hash runHash
@@ -285,6 +286,7 @@ func (ds *dstate) onPop(f *frame) {
 			n.Result = "cost: " + f.cost
 		}
 		n.Cost = f.cost
+		n.PosCosts = f.costs
 	case KindParamsDef:
 		ds.trimFold(f, n.To, FoldParams, "parameters with default values")
 	case KindStateDump:
@@ -421,7 +423,7 @@ func (ds *dstate) finish(viewTo int) {
 			r.IterLabel = it.Prefix + " iteration " + strconv.Itoa(it.N)
 		}
 		d.Runs = append(d.Runs, Run{ID: r.ID, N: r.N, Of: of, QB: r.QB, QBN: r.QBN, From: r.From, To: r.To,
-			Verdict: r.Verdict, Iter: r.IterLabel, Final: r.Final, SameAs: r.SameAs, BestJo: r.BestJo})
+			Verdict: r.Verdict, Iter: r.IterLabel, Final: r.Final, SameAs: r.SameAs, BestJo: r.BestJo, FinalCost: r.FinalCost})
 	}
 	// join orders: the best flag from the enclosing run
 	var cur *Node

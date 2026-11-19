@@ -1,0 +1,62 @@
+/* SQL heat (views/SqlHeat.tsx): the statement's text, each fragment tinted by its share of the plan's self time. The heat
+   is --s-critical, the hot-spot hue of the Lines view, mixed into nothing by share (8 % at 1 % up to 55 %; --h is set per
+   fragment from data/sqlheat.ts heatTint); a fragment under 1 % keeps the text's own background. The code and the margin
+   are two columns of rows of one fixed height, so a long line scrolls sideways without pulling the margin along. */
+.sh {
+  /* em: of the code's font size where it is used (rows, margin cells, callouts all sit in .sh-fig) */
+  --sh-lh: 1.6em;
+  --sh-co: calc(var(--sh-lh) + 0.45rem);
+  --sh-heat: var(--s-critical);
+  display: flex; flex-direction: column; gap: var(--sp-2);
+}
+
+.sh-fig { display: flex; margin: 0; font-family: var(--font-mono); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.sh-code { flex: 1 1 auto; min-inline-size: 0; overflow-x: auto; overflow-y: clip; }
+.sh-lines { display: inline-block; min-inline-size: 100%; vertical-align: top; }
+.sh-row { block-size: var(--sh-lh); line-height: var(--sh-lh); white-space: pre; color: var(--ink); }
+.sh-frag {
+  padding-block: 2px; border-radius: 2px; cursor: default;
+  background: color-mix(in oklch, var(--sh-heat) var(--h), transparent); box-decoration-break: clone; -webkit-box-decoration-break: clone;
+}
+.sh-frag.cool { background: none; }
+.sh-frag.on { box-shadow: inset 0 -1.5px 0 var(--sh-heat); }
+.sh-frag.cool.on { background: var(--wash); }
+
+/* a callout under a function call: a thin leader from the call, then one line of text */
+.sh-callout { block-size: var(--sh-co); box-sizing: border-box; white-space: pre; }
+.sh-pad { font-family: var(--font-mono); }
+.sh-ct {
+  position: relative; display: inline-block; padding-block-start: 0.45rem;
+  font-family: var(--font-ui); font-size: var(--text-xs); line-height: 1.5; color: var(--ink); white-space: nowrap;
+}
+.sh-ct b { font-weight: 600; }
+.sh-lead { position: absolute; inset-block-start: 0; inset-inline-start: 0.4rem; block-size: 0.45rem; border-inline-start: 1px solid var(--ink-2); }
+.sh-child { color: var(--ink-2); font-family: var(--font-mono); }
+
+/* the margin: a bar and the share on a tinted fragment's first line, a rule in its tint beside all its lines */
+.sh-margin { flex: none; inline-size: 8.5rem; display: flex; flex-direction: column; }
+.sh-mg {
+  block-size: var(--sh-lh); box-sizing: border-box; display: flex; align-items: center; gap: 0.45rem;
+  padding-inline-start: var(--sp-2); border-inline-start: 1px solid transparent;
+}
+.sh-mg.br { border-inline-start-color: color-mix(in oklch, var(--sh-heat) var(--h), transparent); }
+.sh-mg.co { block-size: var(--sh-co); }
+.sh-bar { flex: none; display: block; inline-size: 3.5rem; block-size: 6px; border-radius: 1px; background: var(--surface-sunken); overflow: clip; }
+.sh-bar > b { display: block; block-size: 100%; background: var(--sh-heat); }
+.sh-pct { font-size: var(--text-xs); color: var(--ink); white-space: nowrap; }
+.sh-mg.on .sh-pct { font-weight: 600; }
+
+/* under the text: the plan lines of each fragment, and what the text has no place for */
+.sh-maps { display: flex; flex-direction: column; gap: 1px; font-size: var(--text-xs); line-height: 1.45; color: var(--ink-2); }
+.sh-maps p { margin: 0; overflow-wrap: anywhere; }
+.sh-maps p.on { color: var(--ink); }
+.sh-maps .mono { font-variant-numeric: tabular-nums; }
+.sh-legend { margin: 0; font-size: var(--text-xs); line-height: 1.45; color: var(--ink-2); }
+.sh-sw { display: inline-block; inline-size: 0.7rem; block-size: 0.6rem; margin-inline: 0.2rem; border-radius: 2px; vertical-align: -1px; background: color-mix(in oklch, var(--sh-heat) var(--h), transparent); }
+.sh-notes { display: flex; flex-direction: column; gap: var(--sp-1); }
+.sh-notes p { margin: 0; overflow-wrap: anywhere; }
+
+@media (max-width: 40rem) {
+  .sh-margin { inline-size: 5.5rem; }
+  .sh-bar { display: none; }
+}

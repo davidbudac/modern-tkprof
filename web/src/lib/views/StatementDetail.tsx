@@ -28,13 +28,15 @@ import { kindGroups, type KindGroup } from '../data/callkinds'
 import { CheckIcon, CopyIcon } from '../components/icons'
 import { RowFlow } from './RowFlow'
 import { NO_STATS_NOTE, type FlowScale } from '../data/rowflow'
+import { SqlHeat } from './SqlHeat'
+import { heatInput, sqlHeat } from '../data/sqlheat'
 import { isBlockIO } from '../data/iomap'
 import { Shimmer } from '../components/motion'
 import { OptMark } from '../components/OptMark'
 import { DumpMark } from '../components/DumpMark'
 
-/** A request from the statement's view buttons: show the plan as a Row flow, or the slowest execution's Dialogue (`seq` repeats a click). */
-type Jump = { to: 'flow' | 'dialogue'; seq: number }
+/** A request from the statement's view buttons: show the plan as a Row flow or as SQL heat, or the slowest execution's Dialogue (`seq` repeats a click). */
+type Jump = { to: 'flow' | 'heat' | 'dialogue'; seq: number }
 
 /** Scroll `el` into view once `seq` changes to a non-zero value (the jump that asked for it), and again while what it
  *  shows loads and grows (a Dialogue, a flow), for a second at most: the first scroll stops short when the page is still too short. */
@@ -102,6 +104,11 @@ export function StatementDetail({ doc, id, stats: scoped, narrowed = false }: { 
               title={flowOk ? 'Row flow: the rows moving through the plan, leaves to the client' : 'Row flow needs row-source statistics (STAT lines with rows), which this plan has none of'}>
               <FlowIcon /> Row flow</button>
           )}
+          {plansHere.length > 0 && (
+            <button onClick={() => go('heat')} disabled={!flowOk}
+              title={flowOk ? 'SQL heat: the plan\'s self time painted on the SQL text, fragment by fragment' : 'SQL heat needs row-source statistics (STAT lines with times), which this plan has none of'}>
+              <HeatIcon /> SQL heat</button>
+          )}
           {ready && stats.exec.count > 0 && (
             <button onClick={() => go('dialogue')} title="Dialogue: the slowest execution as a sequence diagram between the client, the server and what it waited on">
               <DialogueIcon /> Dialogue</button>
@@ -117,7 +124,7 @@ export function StatementDetail({ doc, id, stats: scoped, narrowed = false }: { 
       {narrowed && stats.allCalls.count === 0 && <p className="callout">No calls of this statement in the selection.</p>}
       <ResponseTime doc={doc} stats={stats} narrowed={narrowed} scope={scope} />
       <StatementContext doc={doc} id={id} stats={stats} narrowed={narrowed} />
-      <Plans doc={doc} id={id} inScope={narrowed ? stats.plans ?? [] : null} jump={jump?.to === 'flow' ? jump.seq : 0} />
+      <Plans doc={doc} id={id} inScope={narrowed ? stats.plans ?? [] : null} jump={jump && jump.to !== 'dialogue' ? jump : null} />
       {st.refPlan && (
         <section className="section">
           <details>
@@ -370,10 +377,12 @@ function Binds({ doc, stmt, ex, mode, setMode }: { doc: TraceDoc; stmt: ID; ex: 
   )
 }
 
-/** `inScope`: the plan dumps of cursors in scope (`StmtStats.plans`); null = all of them. */
-function Plans({ doc, id, inScope, jump }: { doc: TraceDoc; id: ID; inScope: ID[] | null; jump: number }) {
-  // Table | Flow and the flow's band scale: one choice for every plan section, kept across statements and sessions
-  const [view, setView] = usePersisted<PlanView>('mtkprof.plan.view', 'table')
+/** `inScope`: the plan dumps of cursors in scope (`StmtStats.plans`); null = all of them. `jump`: a view button's request. */
+function Plans({ doc, id, inScope, jump }: { doc: TraceDoc; id: ID; inScope: ID[] | null; jump: Jump | null }) {
+  // Table | Row flow | SQL heat and the flow's band scale: one choice for every plan section, kept across statements and
+  // sessions; a stored value this version does not know (a later one's) reads as the table
+  const [stored, setView] = usePersisted<PlanView>('mtkprof.plan.view', 'table')
+  const view: PlanView = PLAN_VIEWS.includes(stored) ? stored : 'table'
   const [flowScale, setFlowScale] = usePersisted<FlowScale>('mtkprof.plan.flowScale', 'sqrt')
   const plans = useMemo(() => {
     const all = doc.plansOf(id)
@@ -381,14 +390,15 @@ function Plans({ doc, id, inScope, jump }: { doc: TraceDoc; id: ID; inScope: ID[
     const keep = new Set(inScope)
     return all.filter((p) => keep.has(p.id))
   }, [doc, id, inScope])
-  useEffect(() => { if (jump) setView('flow') }, [jump]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (jump && jump.to !== 'dialogue') setView(jump.to) }, [jump?.seq]) // eslint-disable-line react-hooks/exhaustive-deps
   if (plans.length === 0) return null
   const byHash = new Map<number, Plan[]>()
   for (const p of plans) { const l = byHash.get(p.planHash); if (l) l.push(p); else byHash.set(p.planHash, [p]) }
-  return <>{[...byHash.entries()].map(([h, dumps], i) => <PlanSection key={`${id}:${h}`} doc={doc} hash={h} dumps={dumps} view={view} onView={setView} flowScale={flowScale} onFlowScale={setFlowScale} scrollSeq={i === 0 ? jump : 0} />)}</>
+  return <>{[...byHash.entries()].map(([h, dumps], i) => <PlanSection key={`${id}:${h}`} doc={doc} hash={h} dumps={dumps} view={view} onView={setView} flowScale={flowScale} onFlowScale={setFlowScale} scrollSeq={i === 0 ? jump?.seq ?? 0 : 0} />)}</>
 }
 
-type PlanView = 'table' | 'flow'
+type PlanView = 'table' | 'flow' | 'heat'
+const PLAN_VIEWS: readonly PlanView[] = ['table', 'flow', 'heat']
 
 type Link = { state: 'pending' } | { state: 'ok'; url: string } | { state: 'big' } | { state: 'nogzip' }
 
@@ -410,6 +420,8 @@ function PlanSection({ doc, hash, dumps, view, onView, flowScale, onFlowScale, s
   const findings = useMemo(() => planFindings(rows), [rows])
   const [focus, setFocus] = useState<{ id: number; seq: number } | null>(null)
   useEffect(() => setFocus(null), [plan])
+  // the dump picked above, its split pieces joined (data/sqlheat.ts heatDump)
+  const heat = useMemo(() => (view === 'heat' ? sqlHeat(heatInput(doc, plan)) : null), [view, doc, plan])
   const [link, setLink] = useState<Link>({ state: 'pending' })
   useEffect(() => {
     let live = true
@@ -436,6 +448,8 @@ function PlanSection({ doc, hash, dumps, view, onView, flowScale, onFlowScale, s
             <button aria-pressed={view === 'table'} onClick={() => onView('table')} title="the plan lines as a table">Table</button>
             <button aria-pressed={view === 'flow'} onClick={() => onView('flow')}
               title={hasStats ? 'the rows flowing through the plan, leaves to the client (Sankey)' : 'no row-source statistics in this dump: the table stays, with a note'}>Row flow</button>
+            <button aria-pressed={view === 'heat'} onClick={() => onView('heat')}
+              title={hasStats ? 'the SQL text, each fragment tinted by its share of the plan\'s self time' : 'no row-source statistics in this dump: the table stays, with a note'}>SQL heat</button>
           </span>
           {dumps.length > 1 && (
             <label className="small muted">dump:{' '}
@@ -464,9 +478,11 @@ function PlanSection({ doc, hash, dumps, view, onView, flowScale, onFlowScale, s
       )}
       <PlanAdvisor findings={findings} onNode={(id) => setFocus((f) => ({ id, seq: (f?.seq ?? 0) + 1 }))} />
       {view === 'flow' && !hasStats && <p className="callout">{NO_STATS_NOTE}</p>}
+      {heat && !heat.ok && <p className="callout">{heat.note}</p>}
       {view === 'flow' && hasStats
         ? <RowFlow doc={doc} plan={plan} lines={lines} scale={flowScale} onScale={onFlowScale} focus={focus} />
-        : <PlanTable doc={doc} plan={plan} focus={focus} />}
+        : heat?.ok ? <SqlHeat doc={doc} heat={heat} />
+          : <PlanTable doc={doc} plan={plan} focus={focus} />}
     </section>
   )
 }
@@ -554,6 +570,9 @@ function Errors({ doc, id }: { doc: TraceDoc; id: ID }) {
 /** The view buttons' glyphs (14 px, currentColor). */
 function FlowIcon() {
   return <svg className="ico" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M1 3c5 0 5 4 12 4M1 11c5 0 5-4 12-4" /></svg>
+}
+function HeatIcon() {
+  return <svg className="ico" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="currentColor"><rect x="1" y="2" width="9" height="2.2" rx="1" /><rect x="3" y="6" width="10" height="2.2" rx="1" opacity=".45" /><rect x="1" y="10" width="6" height="2.2" rx="1" opacity=".7" /></svg>
 }
 function DialogueIcon() {
   return <svg className="ico" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M2 1v12M12 1v12M2 4h9M11 4l-1.5-1.2M12 9H3M3 9l1.5 1.2" /></svg>

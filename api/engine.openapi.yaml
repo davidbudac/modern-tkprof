@@ -6913,6 +6913,23 @@ components:
         method:
           type: string
           description: 'join-step: the method of its "Best:: JoinMethod" line'
+        ref:
+          type: string
+          description: 'table: the object as its single table section names it, "MTK_ORDERS[O]"; absent for a generated view'
+        accCost:
+          type: string
+          description: 'table: the "Cost:" under its "Best:: AccessPath" line, as printed'
+        stepCost:
+          type: string
+          description: 'join-step: the "Cost:" under its "Best:: JoinMethod" line, as printed; absent when the step printed none (an aborted order)'
+        finalCost:
+          type: string
+          description: 'run: the "Cost:" under its "Final cost for query block" line, as printed; absent when the run has none'
+        posCosts:
+          type: array
+          items:
+            type: string
+          description: 'join-order: the cost on each line (position) of its "Best so far" block, as printed; absent when it printed none'
         result:
           type: string
           description: "the right-hand text of the outline row, in the trace's words: a table's access path, a join order's cost or aborted, a join step's method"
@@ -7005,6 +7022,9 @@ components:
           description: 0 none
         bestJo:
           type: integer
+        finalCost:
+          type: string
+          description: 'the "Cost:" under its "Final cost for query block" line, as printed; absent when the run has none'
     OptSQL:
       type: object
       description: one `UNPARSED QUERY IS` statement

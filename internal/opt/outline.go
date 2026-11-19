@@ -506,6 +506,9 @@ func (ds *dstate) runLine(e *lineEnt, title string, from int) {
 		}
 	case c0 == 'F' && hp(b, "Final cost for query block"):
 		ds.open(KindFinalCost, "Final cost", "Final cost", i, 6)
+		if run != nil {
+			run.n.FinalCost = ds.finalCostBelow(i)
+		}
 	case c0 == 'J' && ds.joinOrder(e):
 	case c0 == '(' && hp(b, "(newjo-stop"):
 		for len(ds.stack) > 1 && ds.top().n.Lvl >= 7 {
@@ -533,11 +536,13 @@ func (ds *dstate) runLine(e *lineEnt, title string, from int) {
 		if t.n.Kind == KindTable && hp(s0, "Best:: AccessPath: ") {
 			if tk, _ := token(s0[len("Best:: AccessPath: "):]); len(tk) > 0 {
 				t.n.Best, t.n.Result = string(tk), string(tk)
+				t.n.AccCost = ds.costBelow(e.n, 2)
 			}
 		}
 		if t.n.Kind == KindJoinStep && c0 == 'B' && hp(b, "Best:: JoinMethod: ") {
 			if tk, _ := token(b[len("Best:: JoinMethod: "):]); len(tk) > 0 {
 				t.n.Method, t.n.Result = string(tk), string(tk)
+				t.n.StepCost = ds.costBelow(e.n, 1)
 			}
 		}
 		if hp(s0, "Best join order: ") && run != nil {
@@ -546,6 +551,7 @@ func (ds *dstate) runLine(e *lineEnt, title string, from int) {
 			}
 		}
 		if jo := ds.innermost(KindJoinOrder); jo != nil && c0 == 'B' && hp(b, "Best so far:") {
+			jo.costs = nil
 			ds.tableCost(jo, b[len("Best so far:"):])
 		}
 	case 'J':
@@ -601,7 +607,39 @@ func (ds *dstate) tableCost(jo *frame, rest []byte) {
 	}
 	if tk, _ := token(skipSpace(r[len("cost:"):])); len(tk) > 0 {
 		jo.cost = string(tk)
+		jo.costs = append(jo.costs, jo.cost)
 	}
+}
+
+// finalCostBelow reads the "Cost:" under a "Final cost for query block" line (after its "Best join order:" line).
+func (ds *dstate) finalCostBelow(n int) string {
+	for k := 1; k <= 3; k++ {
+		l := skipSpace(ds.s.ent(n + k).b)
+		if hp(l, "Cost:") {
+			tk, _ := token(skipSpace(l[len("Cost:"):]))
+			return string(tk)
+		}
+		if !hp(l, "Best join order:") {
+			break
+		}
+	}
+	return ""
+}
+
+// costBelow reads the value of the "Cost:" line that follows the line n (the line of a "Best::" line): the
+// next line, or for an access path the one after an "Index:" line. "" when there is none.
+func (ds *dstate) costBelow(n, within int) string {
+	for k := 1; k <= within; k++ {
+		l := skipSpace(ds.s.ent(n + k).b)
+		if hp(l, "Cost:") {
+			tk, _ := token(skipSpace(l[len("Cost:"):]))
+			return string(tk)
+		}
+		if !hp(l, "Index:") {
+			break
+		}
+	}
+	return ""
 }
 
 // tableStart matches "Access path analysis for T" followed within three lines by SINGLE TABLE ACCESS PATH.
@@ -639,6 +677,9 @@ func (ds *dstate) tableStart(e *lineEnt) bool {
 	}
 	f := ds.open(KindTable, name, name, e.n, 6)
 	f.n.Table = string(t)
+	if name != f.n.Table {
+		f.n.Ref = name
+	}
 	ds.addTable(string(t))
 	return true
 }

@@ -283,6 +283,31 @@ table and a note. The plan advisor stays above either; its node links select the
   Enter) highlights the node's path to the root and its subtree, with a selection line under the figure (STAT link,
   clear); a second click or Esc clears it (after an open popover or line viewer, before the shell's Esc chain).
 
+### SQL heat (`web/src/lib/views/SqlHeat.tsx`, `data/sqlheat.ts`, `styles/sqlheat.css`)
+
+Decisions: DESIGN § SQL heat. A third plan view beside Table and Row flow; lib only, no engine work.
+
+- **Input** (`heatInput`, `heatDump`, `heatChildren`): the statement text, the picked dump's plan lines (a split dump
+  joined with `dumpLines`, from any of its pieces) and the statement's recursive children (`StmtStats.children`,
+  `Link { statement, calls, elapsed }`, with the per-execution count from the call facts when the document has them).
+- **`sqlHeat`** is pure and never throws. It tokenises with `sqlTokens` (`data/optsql.ts`, unchanged: the Go formatter
+  is pinned to it by a golden file), parses query blocks (inline views, scalar subqueries, WITH, set operators) into
+  select list, FROM items with aliases and ANSI ON conditions, WHERE conjuncts split at top-level AND, GROUP BY,
+  HAVING, ORDER BY, CONNECT BY / START WITH, rownum predicates and FETCH FIRST, then maps each plan line to token
+  spans by the rules of DESIGN § SQL heat, in order: ref-bundle `alias` / `qblock` / predicates (exact, predicates
+  matched by column name), the table's FROM item, an index through its parent ROWID access (then a batched nested
+  loop's inner index, an index under a cluster access, a name match, the one table no line reads, each marked ≈),
+  joins to their ON or two-sided conjuncts, the clause operations, a FILTER without a predicate to the line below it
+  (≈), a merge join's sorts to the join, FETCH FIRST's VIEW and window sort to that clause. Self time is Row flow's
+  rule; shares are of the sum of self times; the rest is `unplaced`. A result with `fallback` (DML, PL/SQL, an
+  unparsable text, no statistics, no time, no lines) makes the view show the table with its note.
+- **Display**: the spans are carried onto `formatSql`'s lines by aligning non-blank characters; the margin and the
+  mapping lines are per group. Not parsed: MODEL, PIVOT bodies, `AS OF`, hints that name indexes. On the two large
+  private production traces it ran over 13,389 plans without throwing, the shares summing to 100 % and the text
+  rebuilding exactly, at about 0.1 ms per plan.
+- Tests: `data/sqlheat.test.ts` on public fixtures (io_waits' hash join, plsql_recursive's function, a ref-bundle
+  self-join, DML and PL/SQL fallbacks) and hand-written cases.
+
 ### Reference bundle (`internal/ref/bundle.go`, `internal/model/ref.go`, `internal/report/refscript.go`)
 
 `report.RefQueries(m, lite)` holds the SQL per bundle file as values;
@@ -1972,6 +1997,27 @@ line in `kindMeaning`; a line in no section of the open phase counts in `Unplace
 - **Redaction** (`TextOptions`): `-binds none` leaves the values of `Dump.Binds` out and says so; `-redact-binds`
   replaces `Binds[].value` through the function the CLI gives it (the type and the value); the standalone report's
   digest lines at `Dump.BindLines` are replaced the same way. The SQL text and predicates keep their literals.
+
+#### The Search map (`internal/opt/outline.go`, `dump.go`; `data/searchmap.ts`, `searchmaplayout.ts`, `views/opt/SearchMapPanel.tsx`)
+
+Decisions: DESIGN § Search map. The model carries the costs the drawing needs, as printed strings (`omitempty`, in
+`opt.ts`'s `OptNode`, `OptRun` and `OPT_KEYS`, in the OpenAPI Node schema): a `table` node's `ref` (the section's
+`NAME[ALIAS]`, the key a join order's first table is found by; the latest section costed before the order wins) and
+`accCost` (its `Best:: AccessPath` cost, two lines down for an index path; none for a generated view); a `join-step`'s
+`stepCost` (the `Cost:` of its `Best:: JoinMethod`); a `join-order`'s `posCosts` (the lines of its last `Best so far`
+block); a run's `finalCost` (node and `Run`). An aborted order with no join step and one whose last step has no cost
+are told apart by the existing children; in the fixtures every abort with steps is the second kind. The opt model is
+not in the engine's cache, so no cache format changed.
+
+`buildSearchMap` turns a run node into searches (a run can hold several join searches: order numbers restart),
+orders and positions; numbers are parsed only to place marks. `layoutSearchMap` sizes columns (56 to 3 px, then the
+plot scrolls; dots drop below 4 px; 2,000 orders of ten tables lay out in under 300 ms in the test). The panel
+follows the run holding the selected line, keeps a picked run until the selection enters another, and a click on a
+column calls `select(line, 'top')` (folds open). `TestSearchMapBestOrderCost` compares the winner's last best-so-far
+cost with the printed final cost on every fixture present (271 runs; the 47 that differ are listed by name in the
+test, so a new difference fails); `TestSearchMapFixture` keeps `web/src/lib/data/searchmap.fixture.json` (opt_two's
+dump) in step with the scan: `go test ./internal/opt -run SearchMapFixture -update` rewrites it. The dev harness data
+(`web/dev/opt-two.model.json`, `optsynth.ts`) predates these fields, so the dev harness map has no costs.
 
 #### The parser's dump tracking (`internal/trace/dump.go`, `kind.go`)
 

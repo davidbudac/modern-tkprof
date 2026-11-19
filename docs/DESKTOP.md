@@ -289,6 +289,15 @@ I/O minus its children's. Hover a step for all its numbers and the link to its S
 it to light up its path to the client and everything under it (click again or Esc clears). The
 choice of view and scale is kept. A plan dumped without row-source statistics stays a table.
 
+**SQL heat.** The third plan view (*Table | Row flow | SQL heat*, also the *SQL heat* button beside *Row flow*
+above the SQL text) shows the statement's text with each part tinted by its share of the plan's time: the table
+and its filters, the join condition, the ORDER BY. A bar and the percentage sit in the margin, and under the text
+each part names its plan lines with their own time and buffer gets. What cannot be placed in the text is listed as
+"not placed", so the shares add up to 100 %. A match the trace cannot prove (a table read twice, an index found by
+its name) is marked ≈; with an imported reference bundle (aliases, query blocks, predicates) the matches are exact.
+When the statement runs recursive SQL and calls one function of its own, a ≈ note on that call names the statement
+it runs and how often per execution. DML, PL/SQL blocks and plans without statistics show the table with a note.
+
 **Dialogue.** In Statements, click one execution and switch its detail from *Binds* to *Dialogue*
 (the choice is kept): the execution as a sequence diagram. The client's calls go to the server
 process, the server's waits go to Disk, TEMP or Others (only the ones used are drawn), the rows go
@@ -315,7 +324,16 @@ An optimizer trace (event 10053) is the optimizer's log of one hard parse: the s
 derived, the transformations and join orders it weighed. The file holds one *dump* per optimized statement and no
 times. A file that holds dumps and no 10046 record opens as a **10053 tab**: the tab, its view and its keys are those
 of the file alone, never part of a trace set. The view is a reader: it makes the file navigable and says what its parts
-are. It does not compute anything from the costs.
+are. It does not compute anything from the costs; the *Search map* draws the costs the trace prints.
+
+**Search map.** *Search map* in the toolbar (key `m`) opens a panel across the bottom of the view for the costing run
+the selected line is in (a menu picks another run). Each column is one join order, in the order the optimizer tried
+it; its dots are the costs printed after each step, on a log scale. A completed order ends in a filled dot, an
+abandoned one in a ✕ above the line of the best plan so far (the trace prints no cost when it gives an order up).
+The winning order is marked, and a strip under the columns colours each position by table, so orders that start
+with the same table read as a group. Hover a column for its tables and costs; click it to go to that join order in
+the text. Below the map, every run of the dump: join orders tried and abandoned, the printed final cost, "same as
+run N", and the run that gave the plan.
 
 **What opens as 10053.** A file with at least one dump (from a `Registered qb: … (PARSER)` line to `END SQL Statement
 Dump`) and no 10046 record. From the folder picker a 10053 file opens in a tab of its own, also when it is selected

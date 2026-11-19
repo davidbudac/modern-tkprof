@@ -20,6 +20,7 @@ import { OptViewer, type OptViewerApi, type PlanLink } from './OptViewer'
 import { OptOutline } from './OptOutline'
 import { currentNode, nodeKey, outlineNodes, type OutlineMode } from '../../data/optoutline'
 import { BookmarkPanel, GuidePanel, LandmarkPanel, SqlPanel, type SqlUi } from './OptPanels'
+import { SearchMapPanel } from './SearchMapPanel'
 import '../../styles/lines.css'
 import '../../styles/opt.css'
 
@@ -46,6 +47,9 @@ type LTab = 'outline' | 'landmarks' | 'bookmarks'
 /** The side panels: dragged widths in px (null = the CSS default) and whether each is shown; persisted for every 10053 file. */
 interface Panes { lw: number | null; rw: number | null; l: boolean; r: boolean }
 const PANES: Panes = { lw: null, rw: null, l: true, r: true }
+/** The Search map's panel under the three columns: shown or not, and its dragged height in px (null = the CSS default); persisted for every 10053 file. */
+interface MapPane { open: boolean; h: number | null }
+const MAP_PANE: MapPane = { open: false, h: null }
 type RTab = 'guide' | 'sql'
 
 interface Ui {
@@ -123,6 +127,9 @@ export function OptView(props: OptViewProps) {
   const [panesStored, setPanes] = usePersisted<Panes>('mtkprof.opt.panes', PANES)
   const panes: Panes = { ...PANES, ...panesStored }
   const setPane = (p: Partial<Panes>) => setPanes({ ...panes, ...p })
+  const [mapStored, setMapStored] = usePersisted<MapPane>('mtkprof.opt.map', MAP_PANE)
+  const map: MapPane = { ...MAP_PANE, ...mapStored }
+  const setMap = (p: Partial<MapPane>) => setMapStored({ ...map, ...p })
   const workStyle = {
     ...(panes.lw ? { '--opt-left': `${panes.lw}px` } : null), ...(panes.rw ? { '--opt-right': `${panes.rw}px` } : null),
     ...(panes.l ? null : { '--opt-left-w': '0px' }), ...(panes.r ? null : { '--opt-right-w': '0px' }),
@@ -326,6 +333,7 @@ export function OptView(props: OptViewProps) {
       case '/': e.preventDefault(); qBox.current?.focus(); qBox.current?.select(); break
       case ']': stepLm(1); break
       case '[': stepLm(-1); break
+      case 'm': setMap({ open: !map.open }); break
       case 'r': stepRun(1); break
       case 'R': stepRun(-1); break
       case 'z': if (ui.sel) toggleFoldAt(ui.sel); break
@@ -432,6 +440,7 @@ export function OptView(props: OptViewProps) {
           <button type="button" className="quiet icon-btn" onClick={() => stepRun(1)} disabled={runStarts.length === 0} title="Next costing run  (r)" aria-label="Next costing run"><ChevronDownIcon /></button>
         </div>
         <span className="tb-sep" />
+        <button type="button" className="quiet" aria-pressed={map.open} onClick={() => setMap({ open: !map.open })} title="Search map: the join orders of the costing run, with the costs the trace prints  (m)">Search map</button>
         <button type="button" className="quiet" onClick={toggleAllFolds} disabled={!ix || ix.folds.length === 0 || mode !== 'fmt'} title="Open every fold, or back to the default folds  (Shift+Z; z opens or closes the fold at the selected line)">{anyClosed ? 'Unfold all' : 'Default folds'}</button>
         <button type="button" className="quiet icon-btn" aria-pressed={ui.sel > 0 && notes.bookmarks.has(ui.sel)} disabled={!ui.sel} onClick={() => ui.sel && notes.toggle(ui.sel)} title="Bookmark the selected line  (b)" aria-label="Bookmark the selected line"><BookmarkIcon /></button>
         <ToolbarMenu label="Keys" className="tb-cmd" open={ui.keys} onOpenChange={(o) => set({ keys: o })} title="The keys of this view  (?)" button={<>Keys <kbd>?</kbd></>}>
@@ -523,6 +532,7 @@ export function OptView(props: OptViewProps) {
         {panes.r && <ResizeHandle anchor="end" className="resizer-opt-r" label="Resize the right panel" min={220} maxFrac={0.4} onChange={(px) => setPane({ rw: px })} />}
         <PaneToggle open={panes.r} onToggle={() => setPane({ r: !panes.r })} label={`the right panel (${rtitle})`} className="opt-toggle-r" />
       </div>
+      {map.open && ix && <SearchMapPanel key={ix.dump.idx} ix={ix} focus={focus} height={map.h} onHeight={(h) => setMap({ h })} onClose={() => setMap({ open: false })} onLine={(l) => select(l, 'top')} onNode={goNode} />}
     </section>
   )
 }

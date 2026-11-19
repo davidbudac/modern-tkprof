@@ -1451,8 +1451,9 @@ guide: DESKTOP § The 10053 view.
   parameter printed twice. The reader makes the file navigable and says what its parts are. **It computes nothing
   from the costs**: no summary per statement, no sentence about why a plan won, no comparison of numbers. The text
   stays the trace's own lines in file order; the view dresses it and never re-renders it as tables of numbers (the
-  plan table is the one thing drawn as something else, with a switch back to the trace's text). Computed readings
-  are candidates for later (below), to be chosen after the reader has been used on real traces.
+  plan table and, since 2026-11-19, the Search map are the things drawn as something else; the Search map plots the
+  costs as printed and computes none, § Search map). Computed readings are candidates for later (below), to be chosen
+  after the reader has been used on real traces.
 - **Input: a file that holds only 10053 dumps**: at least one dump and no 10046 record (`opt.File.Pure()`,
   `trace.FileKind10053`). This is how the traces arrive: taken separately for one or a few statements after a 10046
   trace pointed at them. A dump runs from the first `Registered qb: … (PARSER)` line outside a dump to `END SQL
@@ -1571,8 +1572,8 @@ traced.
   TRUNCATE, as for the existing tables.
 
 **Afterwards** — candidates without order or commitment, chosen after the reader has been used on real traces: a
-computed summary per statement; decision views (transformation ledger, access paths per table, join order explorer);
-the origin of a row estimate joined to the 10046 actual rows of the same plan; comparing two dumps; a digest tool for
+computed summary per statement; decision views (transformation ledger, access paths per table; the join order
+explorer is built as the Search map, 2026-11-19); the origin of a row estimate joined to the 10046 actual rows of the same plan; comparing two dumps; a digest tool for
 the assistant and MCP; 21c and 23ai fixtures. (Reading the dumps of an interleaved file was on this list; the `view`
 option did it on 2026-11-18.)
 
@@ -1771,3 +1772,54 @@ measurement asks for it).
 - Milestone order: (1) text-report parity, findings, bind redaction;
   (2) plan JSON and "Open in plan viz"; (3) ref bundle; (4) file sets and PX
   merge; (5) memory and size work for 1 GB traces; (6) comparison.
+
+## SQL heat (decided 2026-11-19, concept 3 of the third round of visualisation ideas)
+
+The owner asked for it after seeing the concept (`docs/viz-concepts/round3/`, kept local: it holds private traces).
+Question: which part of my SQL text costs the time?
+
+- **Placement: a third plan view**, `Table | Row flow | SQL heat`, on the dump the Plans section has picked, and a
+  *SQL heat* button beside *Row flow* in the statement's "Show this statement as" group (the same jump). The choice is
+  the existing stored plan view (`mtkprof.plan.view`); an unknown stored value reads as Table.
+- **What it shows**: the statement formatted as `formatSql` prints it, each fragment tinted by the share of the plan's
+  self time that belongs to it (the Lines view's hot-spot red), a margin bar and percentage per hot fragment, one
+  muted line per mapped group naming its plan lines with their self time and self gets, and what could not be placed
+  ("not placed"), so the shares always sum to 100 %. Groups under 1 % share one line and are not tinted.
+- **Self time is Row flow's** (inclusive minus the children's, clamped at 0); the denominator is the sum of self
+  times, so a sampled parent smaller than its child does not break the sum.
+- **Mapping, from the plan line to the text**: a table line goes to its FROM item and the WHERE conjuncts of that
+  query block that name only it; an index line goes to the table of its parent ROWID access first, by name only
+  after; joins go to their ON condition (else the conjuncts naming both inputs); sorts, group by, distinct, count
+  stopkey, connect by, window and FILTER go to their clause. When the ref bundle gave `alias`, `qblock` and the
+  predicates the mapping uses them and is exact; otherwise a heuristic match (a self-join, a name match) is marked
+  **≈** and the view says why.
+- **Recursive SQL is an annotation, not a share**: plan-line time already holds it. When the statement has recursive
+  children and its text calls exactly one function that is not an Oracle built-in, a ≈ callout on that call names
+  the child statement, how often per execution and its time.
+- **Never a wrong picture**: DML, PL/SQL blocks, text it cannot parse and dumps without statistics or time show the
+  table with a note. A STAT dump split by other lines is joined first (Replay's `dumpLines`).
+- Not built from the concept: the hint underline and the data callouts (rows read, the TEMP spill).
+
+## Search map (decided 2026-11-19, concept 4 of the third round)
+
+The owner asked for it after seeing the concept, knowing it changes the 10053 reader's rule that it computes nothing
+from the costs; the rule now reads: the reader computes nothing from the costs, and the Search map plots the costs
+the trace prints, as printed, with no sums, ratios or costs of its own (a muted sentence in the panel says so).
+
+- **Question**: how did the optimizer search for this query block's plan, where did it find the winner, and where did
+  it give up on the others?
+- **Placement**: a full-width panel of the 10053 view under the outline, text and guide (toolbar *Search map*, key
+  `m`; open state and height kept). It follows the costing run that holds the selected line; a picker lists the dump's
+  runs, and a run with several join searches (OR expansion costs one per branch) has a search selector.
+- **The drawing**: x = join orders in the order tried, y = running cost on a log scale; per order a ladder of the
+  costs printed after each step (step 1 is the first table's access cost, or the first `Best so far` line for a
+  completed order); a completed order ends in a filled dot, an abandoned one in a ✕ just above the best-so-far line
+  (the trace prints no cost at an abort); the best complete plan so far is a step line; the winner (`Best join order`)
+  is marked; a strip under the axis colours each position by table. A step the trace did not reprint (shared with
+  the order before) is a gap ("not printed"), never a copied cost. Below: every run of the dump with join orders
+  tried, aborted, the printed final cost, "same as run N" and the run that gave the plan.
+- **Two printed numbers, no assertion**: the winner's last best-so-far cost and the run's `Final cost` are shown side
+  by side; they are equal in 224 of the 271 runs of the fixtures and differ in 47 (a sort after the search, a MERGE
+  source, a removed join), which the trace does not explain.
+- **Scale**: columns shrink from 56 to 3 px and then scroll; step dots drop below 4 px, the ladder and its end stay.
+

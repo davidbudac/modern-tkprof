@@ -50,7 +50,8 @@ Implemented in the desktop and its pinned engine, beyond the original core list:
   SQL versions with a diff, the final plan, a sourced guide, search); the CLI prints a text digest and writes the
   standalone HTML; a statement of a 10046 tab and a dump of the same sql_id jump to each other. 19c is tested; an
   interleaved file (10046 and 10053 together) still opens as a 10046 trace with a note, and since the dump reader can
-  be opened as 10053 on request. A reader: it computes nothing from the costs.
+  be opened as 10053 on request. A reader: it computes nothing from the costs; since 2026-11-19 its Search map
+  draws one costing run's join-order search from the printed costs.
 - The dump reader (2026-11-18, `docs/PLAN-DIAG.md`, unreleased, on `main` since 2026-11-18): the
   diagnostic dumps Oracle writes to trace files (heap and PGA memory dumps, errorstacks, process and system state,
   hang analysis, deadlock graphs, incident files) open in a *dump* tab with an outline on demand, the paged text and
@@ -70,7 +71,8 @@ Remaining work:
    comparison report export and cross-trace execution drill-down.
 4. Deferred product features: partial documents during parse and detachable windows.
 5. 10053 reader, candidates without order, chosen after use on real traces: a computed summary per statement;
-   decision views (transformation ledger, access paths per table, join order explorer); the origin of a row
+   decision views (transformation ledger, access paths per table; the join order explorer is built as the Search
+   map); the origin of a row
    estimate joined to the 10046 actual rows of the same plan; comparing two dumps; producing the trace from the app;
    a digest tool for the assistant and MCP; 21c and 23ai fixtures. (Reading the dumps of an interleaved file is done:
    the dump reader's `view` option.)

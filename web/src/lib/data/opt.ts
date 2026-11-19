@@ -104,6 +104,16 @@ export interface OptNode {
   /** join-order: the run's "Best join order" names it */
   isBest?: boolean
   method?: string
+  /** table: the object as its single table section names it, "MTK_ORDERS[O]"; absent for a generated view */
+  ref?: string
+  /** table: the "Cost:" under its "Best:: AccessPath" line, as printed */
+  accCost?: string
+  /** join-step: the "Cost:" under its "Best:: JoinMethod" line, as printed; absent when the step printed none (an aborted order) */
+  stepCost?: string
+  /** run: the "Cost:" under its "Final cost for query block" line, as printed; absent when the run has none */
+  finalCost?: string
+  /** join-order: the cost on each line (position) of its "Best so far" block, as printed; absent when it printed none */
+  posCosts?: string[]
   /** the right-hand text of the outline row, in the trace's words */
   result?: string
   bannerBottom?: number
@@ -135,6 +145,8 @@ export interface OptRun {
   final: boolean
   sameAs: number
   bestJo: number
+  /** the "Cost:" under its "Final cost for query block" line, as printed; absent when the run has none */
+  finalCost?: string
 }
 
 /** One "UNPARSED QUERY IS" statement. */
@@ -331,12 +343,12 @@ export const OPT_KEYS: Record<string, { req: string[]; opt: string[] }> = {
   Dump: { req: ['stmtLine', 'stmtTo', 'tree', 'landmarks', 'folds', 'runs', 'sql', 'legend', 'banners', 'roles', 'hints', 'binds', 'altered', 'bindLines', 'digest'], opt: ['plan'] },
   Node: {
     req: ['id', 'kind', 'label', 'crumb', 'from', 'to', 'lvl'],
-    opt: ['children', 'qb', 'qbn', 'n', 'of', 'title', 'count', 'prefix', 'space', 'runs', 'verdict', 'iter', 'iterLabel', 'final', 'sameAs', 'bestJo', 'table', 'best', 'tables', 'cost', 'isBest', 'method', 'result', 'bannerBottom'],
+    opt: ['children', 'qb', 'qbn', 'n', 'of', 'title', 'count', 'prefix', 'space', 'runs', 'verdict', 'iter', 'iterLabel', 'final', 'sameAs', 'bestJo', 'table', 'best', 'tables', 'cost', 'isBest', 'method', 'ref', 'accCost', 'stepCost', 'finalCost', 'posCosts', 'result', 'bannerBottom'],
   },
   Verdict: { req: ['text', 'line', 'kept'], opt: [] },
   Landmark: { req: ['line', 'kind', 'tone', 'text'], opt: [] },
   Fold: { req: ['id', 'from', 'to', 'lines', 'kind', 'label', 'closed'], opt: [] },
-  Run: { req: ['id', 'n', 'of', 'qb', 'qbn', 'from', 'to', 'iter', 'final', 'sameAs', 'bestJo'], opt: ['verdict'] },
+  Run: { req: ['id', 'n', 'of', 'qb', 'qbn', 'from', 'to', 'iter', 'final', 'sameAs', 'bestJo'], opt: ['verdict', 'finalCost'] },
   SQL: { req: ['n', 'head', 'line', 'label', 'text', 'sameAs', 'prev'], opt: [] },
   Plan: { req: ['from', 'head', 'tableTo', 'to', 'cols', 'rows', 'qbs', 'preds'], opt: [] },
   PlanRow: { req: ['line', 'id', 'depth', 'op', 'name', 'rows', 'bytes', 'cost', 'time'], opt: ['extra'] },

@@ -121,6 +121,12 @@ type Node struct {
 	Cost   string   `json:"cost,omitempty"`   // join-order: the cost of its last "Best so far" line, as printed
 	IsBest bool     `json:"isBest,omitempty"` // join-order: the run's "Best join order" names it
 	Method string   `json:"method,omitempty"` // join-step: the method of its "Best:: JoinMethod" line
+	// The numbers the Search map plots, as the trace prints them (nothing is computed from them).
+	Ref       string   `json:"ref,omitempty"`       // table: the object as its single table section names it, "MTK_ORDERS[O]"; "" when that line is absent
+	AccCost   string   `json:"accCost,omitempty"`   // table: the "Cost:" under its "Best:: AccessPath" line ("" for none)
+	StepCost  string   `json:"stepCost,omitempty"`  // join-step: the "Cost:" under its "Best:: JoinMethod" line ("" when the step printed none, as at an abort)
+	FinalCost string   `json:"finalCost,omitempty"` // run: the "Cost:" under its "Final cost for query block" line; absent when the run has none
+	PosCosts  []string `json:"posCosts,omitempty"`  // join-order: the cost on each line (position) of its "Best so far" block; absent when it printed none
 	// Result is the right-hand text of the outline row, in the trace's words: a table's access path, a join
 	// order's "cost: 453.647906" or "aborted", a join step's method.
 	Result       string `json:"result,omitempty"`
@@ -172,6 +178,8 @@ type Run struct {
 	Final   bool     `json:"final"`
 	SameAs  int      `json:"sameAs"` // 0 none
 	BestJo  int      `json:"bestJo"`
+	// FinalCost is the "Cost:" printed under the run's "Final cost for query block" line, as printed; "" when the run has none.
+	FinalCost string `json:"finalCost,omitempty"`
 }
 
 // SQL is one "UNPARSED QUERY IS" statement.

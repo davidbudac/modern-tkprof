@@ -3802,6 +3802,16 @@ export interface components {
             isBest?: boolean;
             /** @description join-step: the method of its "Best:: JoinMethod" line */
             method?: string;
+            /** @description table: the object as its single table section names it, "MTK_ORDERS[O]"; absent for a generated view */
+            ref?: string;
+            /** @description table: the "Cost:" under its "Best:: AccessPath" line, as printed */
+            accCost?: string;
+            /** @description join-step: the "Cost:" under its "Best:: JoinMethod" line, as printed; absent when the step printed none (an aborted order) */
+            stepCost?: string;
+            /** @description run: the "Cost:" under its "Final cost for query block" line, as printed; absent when the run has none */
+            finalCost?: string;
+            /** @description join-order: the cost on each line (position) of its "Best so far" block, as printed; absent when it printed none */
+            posCosts?: string[];
             /** @description the right-hand text of the outline row, in the trace's words: a table's access path, a join order's cost or aborted, a join step's method */
             result?: string;
             /** @description params-default: the last line of its banner */
@@ -3854,6 +3864,8 @@ export interface components {
             /** @description 0 none */
             sameAs: number;
             bestJo: number;
+            /** @description the "Cost:" under its "Final cost for query block" line, as printed; absent when the run has none */
+            finalCost?: string;
         };
         /** @description one `UNPARSED QUERY IS` statement */
         OptSQL: {

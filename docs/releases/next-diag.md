@@ -61,6 +61,16 @@ traces (10053) stay the primary formats.
 - An interleaved file (10046 and 10053 in one session) can now be opened as
   10053: *Open as 10053* beside its note.
 
+## SQL heat and the Search map (desktop and `mtkprof serve`)
+
+- **SQL heat**: a statement's plan has a third view, *Table | Row flow | SQL heat* (also a *SQL heat* button beside
+  *Row flow*): the SQL text with each part tinted by its share of the plan's time, the percentage in the margin, the
+  plan lines each part stands for, and what could not be placed. Matches the trace cannot prove are marked ≈; an
+  imported reference bundle makes them exact. A function that runs recursive SQL gets a ≈ note.
+- **Search map** (10053 view, *Search map* or `m`): one costing run's join-order search, each join order a column of
+  the costs printed after each step on a log scale, abandoned orders ending at the best-so-far line, the winner
+  marked, and a table of every run of the dump. It draws the costs the trace prints and computes none.
+
 ## Command line
 
 - `mtkprof report file.trc` prints the digest of a file of dumps: its facts,

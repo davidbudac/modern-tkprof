@@ -61,13 +61,18 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
   view (outline in file order, Formatted | Raw text, landmarks, folds, costing runs, SQL versions with a diff, the
   plan, a sourced guide, search, line map, notes and bookmarks); the CLI prints a text digest (`report`) and writes
   the standalone HTML (`html`); a statement of a 10046 tab and a dump of the same sql_id jump to each other. It
-  computes nothing from the costs. 19c is tested (ten lab scenarios and an interleaved file, `testdata/opt/19c`,
+  computes nothing from the costs (the Search map, below, plots its printed costs). 19c is tested (ten lab scenarios and an interleaved file, `testdata/opt/19c`,
   `testdata/traces/19c/opt_interleaved.*`); another version opens best effort. An interleaved file (10046 and 10053
   in one session) still opens as a 10046 trace, with a note (since the dump reader it can also be opened as
   10053 on request, below). The scan (`internal/opt`) reads ~290 MB/s (Apple M4) in 24 MB for a
   two-million-line dump; snapshots pin its output. Released in **v0.8.0**
   (`docs/releases/v0.8.0.md`). Cache format 8 (`engine.CacheIndexFormat`, `model.PersistVersion`
   3): a session cached before holds unknown-line counts for a file with dumps.
+- **SQL heat and Search map** (2026-11-19; DESIGN § SQL heat, § Search map, ARCHITECTURE § SQL heat, § The Search
+  map, DESKTOP § Row flow, § The 10053 view; concepts 3 and 4 of `docs/viz-concepts/round3/`, kept local). SQL heat:
+  a third plan view, the statement's text tinted by its plan lines' share of self time (lib only). Search map: a
+  panel of the 10053 view drawing one costing run's join-order search from the costs the trace prints (model fields
+  `ref`, `accCost`, `stepCost`, `posCosts`, `finalCost`; no cache format change). **Built, unreleased, on `main`.**
 - **Plan replay** (2026-11-18; DESIGN § Plan replay, `docs/PLAN-REPLAY.md`, ARCHITECTURE § Plan replay, DESKTOP §
   Replay; prototype `docs/viz-concepts/plan-replay/`): a third mode of a picked execution, `Binds | Dialogue | Replay`,
   plays the execution back on its STAT plan (lines lit by their waits and CPU, rows as dots, the blocks touched as
@@ -289,6 +294,26 @@ CLI: 118 MB trace → text report 0.61 s / 220 MB RSS, HTML 12.7 MB in 0.78 s; 1
 - **History**: the stray 32 MB `mtkprof` binary (removed in `a89bc12`) is still in the history of the now
   public repo; rewriting it means a force-push.
 
+### SQL heat and Search map (2026-11-19)
+
+- **SQL heat** leaves unparsed MODEL, PIVOT bodies, `AS OF` and hints that name indexes; joins on unqualified columns
+  across several tables and views expanded into tables the text does not name stay "not placed". Not built from the
+  concept: the hint underline and the data callouts (rows read, the TEMP spill). No component test (vitest runs
+  `*.test.ts` only). Validated by hand on three private production statements (the concept's shares reproduced).
+- **Search map**: the winner's last best-so-far cost differs from the printed final cost in 47 of 271 fixture runs
+  (`opt_dml` dump 2 run 2, a MERGE source: 10.07 against 3,010.07; 45 runs of the licensed 11g/12c traces, where the
+  final cost adds a sort after the search; a removed join); the panel shows both and asserts nothing. The dev harness
+  data (`web/dev/opt-two.model.json`, `optsynth.ts`) lacks the new fields. Hundreds of orders were seen only on a
+  synthetic run (724 orders); the ten-table probe with 498 orders is not a fixture.
+- **Found on the way, not fixed** (observed in exports, not traced in code): (1) an `XCTEND` of a commit inside dep=2
+  PL/SQL gets depth 1 and the dep=2 calls written before it get it as their parent, so their time is not subtracted
+  from any parent's self time (`pinx_worker_w01.trc`: 11,896 calls under 1,195 XCTENDs; a private production trace:
+  13,285 calls, 25.6 s counted twice); (2) in a private Windows trace (CRLF) a few statement texts run past `END OF
+  STMT` into the trace lines after it (the `PARSING IN CURSOR` `len=` is 555, the text before `END OF STMT` 557 bytes
+  with LF endings); SQL heat then sees a text it cannot parse and falls back.
+- `TestFixtureKindsUnchanged` (`internal/trace/section_test.go`) skips the gitignored `antognini_*` traces, which
+  made it fail on any machine that has them.
+
 ### Plan replay (2026-11-18; `docs/PLAN-REPLAY.md`)
 
 - **PX**: replay the slaves with their coordinator. Needs the attached slaves' calls and waits of the same execution
@@ -309,7 +334,7 @@ CLI: 118 MB trace → text report 0.61 s / 220 MB RSS, HTML 12.7 MB in 0.78 s; 1
 Released in v0.8.0; see "Where things stand". Open:
 
 - **Candidates for later** (no order, chosen after use on real traces): a computed summary per statement; decision views
-  (transformation ledger, access paths per table, join order explorer); the origin of a row estimate joined to the 10046
+  (transformation ledger, access paths per table; the join order explorer is the Search map); the origin of a row estimate joined to the 10046
   actual rows of the same plan; comparing two dumps; a digest tool for the assistant and MCP; 21c and 23ai fixtures.
   (Reading the dumps of an interleaved file: done by the `view` option on the dump reader's branch.)
 - **Not in this version**: producing the trace from the app (turning the event on, `DBMS_SQLDIAG.DUMP_TRACE`); the
