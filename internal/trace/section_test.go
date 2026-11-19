@@ -921,6 +921,8 @@ func TestFixtureKindsUnchanged(t *testing.T) {
 		switch {
 		case d.IsDir() && (rel == "diag" || rel == "big"):
 			return filepath.SkipDir
+		case !d.IsDir() && strings.HasPrefix(d.Name(), "antognini_"):
+			return nil // licence: kept local only and gitignored (testdata/opt/README.md), absent on other machines
 		case !d.IsDir() && strings.HasSuffix(path, ".trc") && d.Name() != "diag_in_10046.trc":
 			found = append(found, "testdata/"+filepath.ToSlash(rel))
 		}
