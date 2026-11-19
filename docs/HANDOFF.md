@@ -1,4 +1,4 @@
-# Handoff — state of mtkprof on 2026-11-18
+# Handoff — state of mtkprof on 2026-11-19
 
 Read this, then `docs/DESIGN.md` (the decisions), `docs/ARCHITECTURE.md` (how the code is shaped) and
 `docs/trace-format-19c.md` (what the parser must accept). Desktop: `desktop/CLAUDE.md`, the user guide
@@ -14,11 +14,10 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
 - `davidbudac/modern-tkprof` is **public**, `main` pushed. One repository, two clients (since 2026-11-02;
   `davidbudac/mtkprof-desktop` is archived): engine + CLI at the root, `web/` (CLI UI and the shared lib
   `web/src/lib`), `desktop/` (Electron since v0.7.0; Tauri 2 until `tauri-final`, see below). One version and one tag for both.
-- Latest release **v0.8.0** (2026-11-18): the 10053 reader and Plan replay, with the fixes since v0.7.0
-  (engine hardening, the answer cache's cap, Cut and tooltip fixes). CLI binaries, the installers (DMG
-  arm64/x64, deb, AppImage, NSIS) and the Tauri bridge (`.app.tar.gz` per arch and `latest.json`, signed with
-  `~/.tauri/mtkprof-updater.key`; no Windows entry) in one GitHub release; notes `docs/releases/v0.8.0.md`.
-  Windows unsmoked. Before it: v0.7.0 (2026-11-09, from `36f1e14`, PR #16), the first with the Electron app.
+- Latest release **v0.9.0** (2026-11-19): the dump reader, SQL heat and the Search map. CLI binaries, the
+  installers (DMG arm64/x64, deb, AppImage, NSIS) and the Tauri bridge (`.app.tar.gz` per arch and `latest.json`,
+  signed with `~/.tauri/mtkprof-updater.key`; no Windows entry) in one GitHub release; notes
+  `docs/releases/v0.9.0.md`. Before it: v0.8.0 (2026-11-18, the 10053 reader and Plan replay; Windows unsmoked), v0.7.0 (2026-11-09, from `36f1e14`, PR #16), the first with the Electron app.
 - **2026-11-08 desktop review round** (`docs/REVIEW-DESKTOP-PERFORMANCE-UX-2026-11-08.md`): 14 findings on
   transitions, work preservation, opening, prompts, keyboard and the Cut view, all fixed on `main` after v0.6.0 in one
   multi-agent run (five parallel worktrees, reviewed, merged); the tracking table there has the evidence per finding,
@@ -73,7 +72,7 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
   a third plan view, the statement's text tinted by its plan lines' share of self time, with how much of the covered
   execution the plan accounts for and recursive SQL outside the plan as a share of its own (lib only). Search map: a
   panel of the 10053 view drawing one costing run's join-order search from the costs the trace prints (model fields
-  `ref`, `accCost`, `stepCost`, `posCosts`, `finalCost`; no cache format change). **Built, unreleased, on `main`.**
+  `ref`, `accCost`, `stepCost`, `posCosts`, `finalCost`; no cache format change). Released in **v0.9.0**.
 - **Plan replay** (2026-11-18; DESIGN § Plan replay, `docs/PLAN-REPLAY.md`, ARCHITECTURE § Plan replay, DESKTOP §
   Replay; prototype `docs/viz-concepts/plan-replay/`): a third mode of a picked execution, `Binds | Dialogue | Replay`,
   plays the execution back on its STAT plan (lines lit by their waits and CPU, rows as dots, the blocks touched as
@@ -91,8 +90,8 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
   deadlock cycle); the CLI prints a text digest and writes the standalone HTML; the session option `view` (`-view`)
   opens a file another way (a 10046 trace with an errorstack in the dump reader, an interleaved file as 10053); a
   statement or session of a 10046 tab and a dump that names it jump to each other (desktop). 19c is tested (15 lab
-  fixtures in `testdata/diag/19c`, `testdata/traces/19c/diag_in_10046.*` with tkprof output). **Built, unreleased, on
-  `main`** (merged on 2026-11-18, after v0.8.0); the draft notes are `docs/releases/next-diag.md`. Cache
+  fixtures in `testdata/diag/19c`, `testdata/traces/19c/diag_in_10046.*` with tkprof output). Released in **v0.9.0**
+  (`docs/releases/v0.9.0.md`). Cache
   format 9 (`engine.CacheIndexFormat`, `model.PersistVersion` 4): a session cached before holds unknown-line counts
   for a file with sections.
 - Website `site/` is published on GitHub Pages (https://davidbudac.github.io/modern-tkprof/) with
@@ -288,8 +287,7 @@ CLI: 118 MB trace → text report 0.61 s / 220 MB RSS, HTML 12.7 MB in 0.78 s; 1
 - **Remote** (`docs/REMOTE.md` § Open): TCPS (dbmint has no TCPS listener; needs a wallet and a listener
   restart), the AIX/Solaris scripts.
 - **Visualizer** has no LICENSE file. It shows "0ms" for µs-scale plans (its display rounds to ms).
-- **The dump reader** (on `main` since 2026-11-18, merged after v0.8.0): release it (version, tag;
-  `docs/releases/next-diag.md` is the draft). The lab's ADR holds five ORA-06544 incidents
+- **The lab's ADR** holds five ORA-06544 incidents
   (48 to 53) from the stage 1 out-of-memory attempts (`diag_oom`): purge them or keep them, your call; `run_gen.sh
   diag_oom` writes another.
 - **History**: the stray 32 MB `mtkprof` binary (removed in `a89bc12`) is still in the history of the now
