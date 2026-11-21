@@ -125,7 +125,7 @@ function DrawerOf({ doc, file, target, center }: { doc: TraceDoc; file: number; 
         {shownNote.shown && <span key={shownNote.shown} className={'hint flash-note' + (shownNote.closing ? ' closing' : '')} role="status" aria-live="polite">{shownNote.shown}</span>}
         <span className="tools">
           <BackButton hub={hub} target={target} total={total} onBack={back} />
-          {tab && <button onClick={() => actions.openLinesAt(file, selected)} title="open the whole trace in the Lines tab">In Lines tab</button>}
+          {tab && <button onClick={() => actions.openLinesAt(file, selected)} title="open the whole trace in the Trace tab">In Trace tab</button>}
           <button onClick={() => actions.closeLines()} aria-label="Close trace lines">Close</button>
         </span>
       </div>

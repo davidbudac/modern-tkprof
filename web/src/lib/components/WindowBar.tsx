@@ -55,7 +55,7 @@ export function WindowBar({ doc, zoom }: { doc: TraceDoc; zoom?: boolean }) {
       {block && <span className="muted">· block of <StmtLink doc={doc} id={block.stmt} /></span>}
       {error && <small className="winbar-err" role="alert">{error}</small>}
       <span className="winbar-acts">
-        {canLines && <button className="go" onClick={() => void openLines()} disabled={busy} aria-busy={busy} aria-label="Open the lines of the time window in the Lines tab" title="the Lines tab at the first line of the window">{busy ? 'Lines…' : 'Lines'}</button>}
+        {canLines && <button className="go" onClick={() => void openLines()} disabled={busy} aria-busy={busy} aria-label="Open the lines of the time window in the Trace tab" title="the Trace tab at the first line of the window">{busy ? 'Trace…' : 'Trace'}</button>}
         {zoom && <button onClick={() => actions.zoomLanes(win)} disabled={zoomTop?.startTim === win.startTim && zoomTop.endTim === win.endTim} aria-label="Zoom the lanes to the time window" title="zoom the lanes to the window">Zoom</button>}
         {block && <button onClick={() => actions.selectStmt(block.stmt)} aria-label="Open the statement of the block" title="the statement of the block, filtered to the window">Statement</button>}
         <button className="quiet" onClick={() => actions.setWindow(null)} aria-label="Clear time window" title="clear (Esc)">×</button>

@@ -22,7 +22,7 @@ import { planFindings, type Finding as PlanFinding } from '../data/advisor'
 import { NoteEditor, NoteBox } from '../components/Note'
 import { stmtRef, stmtNote, execNotes, execKey, makeAnnotation, type StmtRef } from '../data/annotations'
 import { planRows, planVizUrl, planVizOverride, setPlanVizOverride, canGzip, DEFAULT_PLAN_VIZ, MAX_LINK_CHARS } from '../data/planviz'
-import { StatementContext, StatementFindings, StatementLinesMenu } from './StatementContext'
+import { StatementContext, StatementFindings, StatementLinesMenu, StatementWaits } from './StatementContext'
 import { MenuItem, ToolbarMenu } from '../components/ToolbarMenu'
 import { kindGroups, type KindGroup } from '../data/callkinds'
 import { CheckIcon, CopyIcon } from '../components/icons'
@@ -122,7 +122,7 @@ export function StatementDetail({ doc, id, stats: scoped, narrowed = false }: { 
       <SqlText text={st.text} />
       {narrowed && stats.allCalls.count === 0 && <p className="callout">No calls of this statement in the selection.</p>}
       <ResponseTime doc={doc} stats={stats} narrowed={narrowed} scope={scope} />
-      <StatementContext doc={doc} id={id} stats={stats} narrowed={narrowed} />
+      <StatementWaits doc={doc} id={id} narrowed={narrowed} />
       <Plans doc={doc} id={id} inScope={narrowed ? stats.plans ?? [] : null} jump={jump && jump.to !== 'dialogue' ? jump : null} />
       {st.refPlan && (
         <section className="section">
@@ -136,6 +136,7 @@ export function StatementDetail({ doc, id, stats: scoped, narrowed = false }: { 
       <CallTable stats={stats} />
       {ready && <Executions key={id} doc={doc} id={id} scope={scope} jump={jump?.to === 'dialogue' ? jump.seq : 0} />}
       <Errors doc={doc} id={id} />
+      <StatementContext doc={doc} id={id} stats={stats} narrowed={narrowed} />
     </>
   )
 }

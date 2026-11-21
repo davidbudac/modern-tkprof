@@ -17,21 +17,16 @@ import { useScopedFindings } from '../data/scopedfindings'
 const WHOLE: Scope = { window: null, files: null, contexts: null, includeIdle: true }
 
 /**
- * The context sections of the statement detail: where the statement ran, its waits, its relatives. `stats` are the numbers
- * of the scope when `narrowed` (first and last call come from them, the cursors are those in scope, the waits are the scope's).
+ * The context sections of the statement detail: where the statement ran and its relatives (placed last in the detail). `stats` are the numbers
+ * of the scope when `narrowed` (first and last call come from them, the cursors are those in scope).
  */
 export function StatementContext({ doc, id, stats: scoped, narrowed = false }: { doc: TraceDoc; id: ID; stats?: StmtStats; narrowed?: boolean }) {
-  const actions = useActions()
   const st = doc.statements[id]
   const stats = scoped ?? doc.stats.statements[id]
-  const source = sourceOf(doc)
   const stateScope = useScope(doc)
-  const scope = narrowed ? stateScope : WHOLE
-  const waitsQ = useSourceQuery(source, `waits:${id}:${scopeKey(scope)}`, (signal) => (source.ready ? source.stmtWaits([id], 6, scope, signal) : null), `waits:${id}`)
   if (!st || !stats) return null
   const cursorsIn = narrowed ? st.cursors.filter((c) => inScopeCursor(doc, c, stateScope)) : st.cursors
   const ctx = cursorsIn.length ? doc.contexts[doc.cursors[cursorsIn[0]].context] : undefined
-  const waits = waitsQ.data?.get(id) ?? []
   const children = stats.children ?? [], parents = stats.parents ?? []
   const assumed = cursorsIn.some((c) => doc.cursors[c].assumed)
   return (
@@ -47,22 +42,6 @@ export function StatementContext({ doc, id, stats: scoped, narrowed = false }: {
           <dt>parsed by</dt><dd>user id {st.parsingUserId}{doc.userName(st.parsingUserId) ? ` · ${doc.userName(st.parsingUserId)}` : ''}</dd>
         </dl>
       </div>
-      {waits.length > 0 && (
-        <div className="ctx-sec">
-          <h3>Waits</h3>
-          {waits.map((w) => (
-            <div key={w.event} className="wobj row-click" onClick={() => actions.selectEvent(w.event)}>
-              <span className="nm"><i className="swatch" style={{ background: `var(--c-${w.role})` }} />{w.name}</span><span className="n">{fmtDur(w.us)}</span>
-              <small>{w.obj > 0 && (w.role === 'userio' || w.role === 'sysio') ? `obj# ${w.obj}${doc.objectName(w.obj) ? ` ${doc.objectName(w.obj)}` : ''} · ` : ''}{fmtInt(w.count)} wait{w.count === 1 ? '' : 's'} · avg {fmtDur(w.us / w.count)} · max {fmtDur(w.maxUs)}{w.maxLine > 0 && <> at <LineRef line={w.maxLine} file={w.maxFile ?? doc.fileOfStmt(id)} /></>}
-                {source.ready && doc.events[w.event] && isBlockIO(doc.events[w.event]) && (
-                  <button type="button" className="link to-blocks" title="the file blocks these waits touched (the I/O map, filtered to this statement and event)"
-                    onClick={(e) => { e.stopPropagation(); actions.showBlocks({ stmt: id, event: w.event }) }}>in I/O map</button>
-                )}</small>
-            </div>
-          ))}
-          {waits.some((w) => w.obj > 0 && (w.role === 'userio' || w.role === 'sysio') && !doc.objectName(w.obj)) && <p className="faint xs">obj# without a name: <ImportNames doc={doc} /></p>}
-        </div>
-      )}
       {(children.length > 0 || parents.length > 0) && (
         <div className="ctx-sec">
           <h3>Recursive statements</h3>
@@ -77,6 +56,33 @@ export function StatementContext({ doc, id, stats: scoped, narrowed = false }: {
         </div>
       )}
     </>
+  )
+}
+
+/** The statement's top waits (the scope's when `narrowed`), under its response time in the statement detail. */
+export function StatementWaits({ doc, id, narrowed = false }: { doc: TraceDoc; id: ID; narrowed?: boolean }) {
+  const actions = useActions()
+  const source = sourceOf(doc)
+  const stateScope = useScope(doc)
+  const scope = narrowed ? stateScope : WHOLE
+  const waitsQ = useSourceQuery(source, `waits:${id}:${scopeKey(scope)}`, (signal) => (source.ready ? source.stmtWaits([id], 6, scope, signal) : null), `waits:${id}`)
+  const waits = waitsQ.data?.get(id) ?? []
+  if (waits.length === 0) return null
+  return (
+        <div className="ctx-sec">
+          <h3>Waits</h3>
+          {waits.map((w) => (
+            <div key={w.event} className="wobj row-click" onClick={() => actions.selectEvent(w.event)}>
+              <span className="nm"><i className="swatch" style={{ background: `var(--c-${w.role})` }} />{w.name}</span><span className="n">{fmtDur(w.us)}</span>
+              <small>{w.obj > 0 && (w.role === 'userio' || w.role === 'sysio') ? `obj# ${w.obj}${doc.objectName(w.obj) ? ` ${doc.objectName(w.obj)}` : ''} · ` : ''}{fmtInt(w.count)} wait{w.count === 1 ? '' : 's'} · avg {fmtDur(w.us / w.count)} · max {fmtDur(w.maxUs)}{w.maxLine > 0 && <> at <LineRef line={w.maxLine} file={w.maxFile ?? doc.fileOfStmt(id)} /></>}
+                {source.ready && doc.events[w.event] && isBlockIO(doc.events[w.event]) && (
+                  <button type="button" className="link to-blocks" title="the file blocks these waits touched (the I/O map, filtered to this statement and event)"
+                    onClick={(e) => { e.stopPropagation(); actions.showBlocks({ stmt: id, event: w.event }) }}>in I/O map</button>
+                )}</small>
+            </div>
+          ))}
+          {waits.some((w) => w.obj > 0 && (w.role === 'userio' || w.role === 'sysio') && !doc.objectName(w.obj)) && <p className="faint xs">obj# without a name: <ImportNames doc={doc} /></p>}
+        </div>
   )
 }
 

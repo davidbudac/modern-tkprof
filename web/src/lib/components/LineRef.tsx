@@ -22,7 +22,7 @@ export function LineRef({ line, file = 0, bare, className }: { line: number; fil
   }
   return (
     <button className={'link lineref' + (className ? ' ' + className : '')}
-      title={`view trace line ${fmtInt(line)}${tab && available ? (toTab ? ' (Shift: in the drawer)' : ' (Shift: in the Lines tab)') : ''}`}
+      title={`view trace line ${fmtInt(line)}${tab && available ? (toTab ? ' (Shift: in the drawer)' : ' (Shift: in the Trace tab)') : ''}`}
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => { e.preventDefault(); e.stopPropagation(); open(e) }}>
       {text}

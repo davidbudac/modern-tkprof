@@ -261,20 +261,20 @@ Close Tab* (the window closes with *Window → Close Window*, ⇧⌘W, or the re
 |---|---|
 | Overview, Statements, Waits, Timeline, Sessions, Pivot | as in `mtkprof serve`; the document is sliced by the engine, so a 2 GB trace stays light |
 | **I/O map** (⌘I) | every physical I/O wait with a block address: one panel per datafile or tempfile, or per object (*Panels*), x = the n-th such wait (*I/O order*) or *Time*, y = the block number (*Display* › *Block axis*: linear, or packed with the empty block ranges collapsed), each mark as tall as the blocks it moved. *Colour* by event, object, object type, schema, tablespace, file, statement, session, latency, read size or *re-reads* (how often the mark's most read block was read in scope, counted over every wait); a click on a legend entry highlights its marks (⌘/Ctrl/Shift-click adds one). *Density* (auto, on, off) draws a layer under the marks that counts every wait in scope, not the sample, into cells of about 4 px: darker where more waits touched (*Display* › *Density*: count waits, blocks or time, square-root or log scale, and hide the marks to see it alone); *auto* shows it while the marks are a sample. Hover a cell where no mark is for its waits, blocks, time, main event and range. Objects are named from a reference bundle (owner, type, partition), else from the trace's own plans; *Import names…* (Objects and Display tabs) gets the bundle without a connection; *Display* chooses whether the schema, the PDB, the partition and the obj# show. Zoom: drag across the map (sideways: time, up or down: that panel's blocks, diagonal: both), ⌘ + wheel at the pointer, `+` / `−`, `0` for the whole range, ← → to pan, a double-click or *‹ Out* to go back; the strip on top shows the whole range with the zoom as a box you can drag. *Use as time window* makes the zoomed range every view's window. The side panel: per object (waits, time, blocks, re-reads per block, how sequential), *Hot blocks* (the blocks read over and over, as ranges of adjacent blocks with their reads per block, time, writes, first and last read and the statements that read them; a click zooms that panel to the range and highlights its marks; sort by re-reads, by the most reads of one block, or by time), per statement and file, latency histograms with p50 / p95 / p99 and blocks per wait per event. Objects, Hot blocks and Statements count every wait in scope ("Exact"), not the marks drawn; when a trace touches more blocks than the engine counts one by one, Hot blocks says so and how often a block it leaves out may have been read. Full scans are diagonals, a sort spill a write stripe then a read stripe, a multipass hash join a sawtooth of re-reads. Hover a mark for its wait, click to pin it (line and statement links); *Display* › *Marks* caps the rows (every k-th above it, "showing 1 in k"; a zoom asks again, so it needs fewer) |
-| **Lines** | the raw trace file, paged. Kind colouring, gutter marks of the selected statement, the object at the clicked line, streaming search, jump to time, a file selector for sets |
+| **Trace** | the raw trace file, paged. Kind colouring, gutter marks of the selected statement, the object at the clicked line, streaming search, jump to time, a file selector for sets |
 | **Notes** (*Tools ▾*) | all notes of the trace |
 | **Reports** (*Tools ▾*) | what the CLI writes, saved from the tab |
 
 **"line N" links** ("show in trace") open the small **line drawer** at that line, which has *In
-Lines tab*; Shift+click goes straight to the **Lines** tab at that line with the object there
-highlighted. In Lines, *Bookmark* (or `b`, or a right-click on a line number) in the selected
+Trace tab*; Shift+click goes straight to the **Trace** tab at that line with the object there
+highlighted. In Trace, *Bookmark* (or `b`, or a right-click on a line number) in the selected
 line's *Actions* menu marks a line; bookmarks are kept per trace across restarts.
 
 **From the timeline to the lines.** In the Overview lanes a click on a block makes its interval
 the time window and selects its statement (double-click opens the statement, still filtered to
 the block); drag sets any window. A *Window* row above the timeline (also in the Timeline tab)
-shows the window and its block, with *Lines* (the Lines tab at the window's first line),
-*Statement* and ×. In Lines the window's lines have a band in the gutter, *⇤ start* / *end ⇥*
+shows the window and its block, with *Trace* (the Trace tab at the window's first line),
+*Statement* and ×. In Trace the window's lines have a band in the gutter, *⇤ start* / *end ⇥*
 jump to its ends, and the file picker marks the files that fall in the window. To drill into a
 long trace, *Zoom* (in the Overview's window row) shows only the window in the lanes, with finer
 blocks to click; a strip above them has *‹ Out* (the previous zoom) and *Reset*. Zooming is only a

@@ -30,7 +30,7 @@ describe('window controls', () => {
     Object.defineProperty(doc, 'slice', { value: {} })
     session.store.setState({ doc, window, block: { ...window, stmt: 0 }, linesApi: true })
     const html = renderToStaticMarkup(createElement(SessionContext.Provider, { value: session }, createElement(WindowBar, { doc, zoom: true })))
-    expect(html).toContain('>Lines</button>')
+    expect(html).toContain('>Trace</button>')
     expect(html).toContain('>Zoom</button>')
     expect(html).toContain('>Statement</button>')
     expect(html.match(/aria-label="Clear time window"/g)).toHaveLength(1)

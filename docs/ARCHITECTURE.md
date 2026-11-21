@@ -625,7 +625,7 @@ restores). Pieces:
   shell sets `'view'`), `linesView {file, line, seq}` (`openLinesAt(file, line)` bumps
   `seq`, which makes the view scroll and resolve the line; `setLinesLine` does not),
   `bookmarks`. `LineRef` opens the drawer, or the tab as `lineRefTarget` says; Shift
-  flips it; the drawer has an "In Lines tab" button. What the view keeps while another
+  flips it; the drawer has an "In Trace tab" button. What the view keeps while another
   tab is shown (position, query, hits, panel) lives in a `WeakMap` keyed by store and
   file, so switching tabs does not lose a search.
 - The selected row shows Copy (its text) and Link (in `.lv-gut`, a fixed-width gutter that ends every row, sticky at the
