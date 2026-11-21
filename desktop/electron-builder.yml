@@ -25,13 +25,15 @@ fileAssociations:
 electronLanguages: [en-US]
 # no general Node runtime or debugger through the app binary, the UI only from the integrity-checked
 # app.asar (DESIGN § Desktop shell). `@electron/fuses read --app <app>` shows them.
+# Cookie encryption stays off: the app sets no cookies, and on macOS it reads the keychain at every
+# launch, which an ad-hoc signed build must be allowed again after each update.
 electronFuses:
   runAsNode: false
   enableNodeOptionsEnvironmentVariable: false
   enableNodeCliInspectArguments: false
   enableEmbeddedAsarIntegrityValidation: true
   onlyLoadAppFromAsar: true
-  enableCookieEncryption: true
+  enableCookieEncryption: false
   grantFileProtocolExtraPrivileges: false
 mac:
   target: dmg

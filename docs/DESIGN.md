@@ -274,6 +274,10 @@ Plan, protocol and the full decision log: `docs/PLAN-DESKTOP.md`.
   cache. Packaged builds set Electron's fuses (no run-as-node, `NODE_OPTIONS`
   or inspector; the UI only from the integrity-checked `app.asar`), refuse
   remote debugging, grant only clipboard writes and keep a strict CSP.
+  Cookie encryption is off (2026-11-21): the app sets no cookies, and the fuse
+  made Chromium read its keychain item at every launch, which macOS asks to
+  allow again after each update of an ad-hoc signed build. The keychain is
+  read only for remembered Assistant keys.
 - Electron is kept current: a Chromium security fix reaches users only through
   an Electron upgrade, and only the newest three majors get fixes (a major every
   eight weeks). `desktop/scripts/release-local.sh` refuses a release whose
