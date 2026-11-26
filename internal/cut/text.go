@@ -714,7 +714,7 @@ func (c *Cutter) walkFile(o *emitter, f int) error {
 			}
 			continue
 		case trace.KindParsingInCursor:
-			sql.start(b)
+			sql.start(b, r.crlf)
 			num, _ := cursorNum(b)
 			cur := c.idx.cursorAt(f, num, ln)
 			keep = in && cur >= 0 && s.ref.has(int64(cur))

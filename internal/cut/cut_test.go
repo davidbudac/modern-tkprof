@@ -159,12 +159,8 @@ func TestCutWholeIsSource(t *testing.T) {
 				got = append(got, l)
 			}
 		}
-		// a \r before the \n is the line's own unless the file's lines end in \r\n (its first line does)
-		text := string(src)
-		if first, _, _ := strings.Cut(text, "\n"); strings.HasSuffix(first, "\r") {
-			text = strings.ReplaceAll(text, "\r\n", "\n")
-		}
-		want := strings.Split(strings.TrimSuffix(text, "\n"), "\n")
+		// a Windows trace keeps its \r\n line ends, so the lines compare as they are
+		want := strings.Split(strings.TrimSuffix(string(src), "\n"), "\n")
 		if len(got) != len(want) {
 			t.Errorf("%s: %d lines, source %d", path, len(got), len(want))
 		}

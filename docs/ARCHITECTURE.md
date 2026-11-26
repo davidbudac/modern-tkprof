@@ -1664,7 +1664,8 @@ engine session cuts from its spill) gives a `Cutter`; `Plan`, `Write` and `Check
    lines back until the first one with a `tim`: the generated timestamp gets its wall clock
    (`Model.CallWall` at that line) and the restated cursors that `tim`. Masked binds are rewritten
    by `maskState`. Both sinks get the same items: `planner` (pieces, head/tail samples, per-file
-   runs of labels, capped at `MaxRuns`) and `writerSink`.
+   runs of labels, capped at `MaxRuns`) and `writerSink`. The new file's lines end in `\r\n`
+   when a source file's do (`Cutter.eol`), as a statement's `len=` may count those `\r`.
 3. `Check` (plan.go) writes to a temporary file, `model.Build`s it and `compare`s per
    `stmtKeys` (sql_id, else hash value and text, else kind and text).
 

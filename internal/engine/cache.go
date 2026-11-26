@@ -88,8 +88,10 @@ import (
 // cached before this holds the old unknown-line counts and no note. 10: an
 // XCTEND is one deeper than the call before it and no longer the parent of any
 // call, so a session cached before holds other parents, depths and self times
-// for a trace with commits.
-const CacheIndexFormat = 10
+// for a trace with commits. 11: in a CRLF trace the \r that len= counts no
+// longer makes a statement text run past its END OF STMT, so such a session
+// cached before holds other statements, calls and waits.
+const CacheIndexFormat = 11
 
 // cacheParts are the versions of the files of an entry at CacheIndexFormat.
 var cacheParts = map[string]int{

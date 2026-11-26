@@ -170,7 +170,7 @@ per snapshot, `api/doc?rev=` long poll (ARCHITECTURE § Engine mode).
   statement later parsed under that number (tkprof's rule), flagged `Cursor.Assumed`. Split traces (`TRACE
   CONTINUED FROM FILE`) are partly excluded from the golden check for this reason (`internal/golden/golden_test.go`).
 - **`END OF STMT` inside SQL text** is real (`nasty_sql.trc`); the parser only accepts the terminator once at
-  least `len-4` bytes were read. `PARSE ERROR` text has no terminator; it ends after `len+1` bytes or at the
+  least `len-4` bytes were read (in a CRLF file the stripped `\r` count too). `PARSE ERROR` text has no terminator; it ends after `len+1` bytes or at the
   next trace line.
 - **Waits on cursor #0 after `XCTEND`** (log file sync) belong to the commit; the builder routes them to the
   last XCTEND until the next call.
@@ -314,9 +314,12 @@ CLI: 118 MB trace → text report 0.61 s / 220 MB RSS, HTML 12.7 MB in 0.78 s; 1
   cannot hold it (a CLOSE or LOB call of a few µs adopting seconds of recursive SQL, seen in an 11g trace), so those
   self times clamp to 0 and the time counts twice. `XCTEND`s left without a containing parent follow the same rule
   (a client's commit between calls goes to the next dep-0 call).
-- **Found on the way, not fixed** (observed in exports, not traced in code): in a private Windows trace (CRLF) a few
-  statement texts run past `END OF STMT` into the trace lines after it (the `PARSING IN CURSOR` `len=` is 555, the text before `END OF STMT` 557 bytes
-  with LF endings); SQL heat then sees a text it cannot parse and falls back.
+- **Statement texts in CRLF traces, fixed** (2026-11-26, unreleased; format reference § Cursor text): `len=` may
+  count the `\r` the parser strips, so texts ran past `END OF STMT` and swallowed the calls after them. Cut now
+  writes CRLF for a Windows source. **Still open**: an 11g trace prints some statements shorter than their `len=`
+  with LF or CRLF counted either way (some GRANTs), and those still run on; a possible rule is to accept an
+  `END OF STMT` that the cursor's own `PARSE #n:` follows (parser, `cut.sqlText` and `peek` alike). A `PARSE ERROR`
+  text in a CRLF file is still counted without the `\r` (it ends at the next trace line).
 - `TestFixtureKindsUnchanged` (`internal/trace/section_test.go`) skips the gitignored `antognini_*` traces, which
   made it fail on any machine that has them.
 

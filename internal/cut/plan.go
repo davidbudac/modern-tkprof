@@ -87,6 +87,19 @@ type planner struct {
 	runs  [][]Run
 	out   int64
 	bytes int64
+	eol   string // see Cutter.eol
+}
+
+// eol is the line end of the new file: \r\n when a source file has it. A
+// statement's len= may count the \r of its line breaks, so a Windows trace
+// rewritten with \n line ends would no longer say where its texts end.
+func (c *Cutter) eol() string {
+	for f := range c.m.File.Files {
+		if c.idx.isCRLF(f) {
+			return "\r\n"
+		}
+	}
+	return "\n"
 }
 
 func kindOf(l byte) string {
@@ -112,7 +125,7 @@ func clip(b []byte) string {
 
 func (pl *planner) put(it *item) error {
 	pl.out++
-	pl.bytes += int64(len(it.text)) + 1
+	pl.bytes += int64(len(it.text) + len(pl.eol))
 	kind := kindOf(it.label)
 	if it.start != nil || pl.cur == nil || pl.cur.Kind != kind || (kind == "kept" && int32(pl.cur.File) != it.file) {
 		pl.endPiece()
@@ -221,14 +234,16 @@ func (pl *planner) finish(c *Cutter, s *selected) {
 }
 
 type writerSink struct {
-	w *bufio.Writer
+	w   *bufio.Writer
+	eol string
 }
 
 func (ws writerSink) put(it *item) error {
 	if _, err := ws.w.Write(it.text); err != nil {
 		return err
 	}
-	return ws.w.WriteByte('\n')
+	_, err := ws.w.WriteString(ws.eol)
+	return err
 }
 
 type tee [2]sink
@@ -277,12 +292,12 @@ func (c *Cutter) run(ctx context.Context, sel *Selection, w io.Writer) (*Plan, *
 			p.Processes++
 		}
 	}
-	pl := &planner{p: p}
+	pl := &planner{p: p, eol: c.eol()}
 	var out sink = pl
 	var bw *bufio.Writer
 	if w != nil {
 		bw = bufio.NewWriterSize(w, 1<<20)
-		out = tee{pl, writerSink{bw}}
+		out = tee{pl, writerSink{bw, pl.eol}}
 	}
 	if err := c.walk(ctx, sel, s, out); err != nil {
 		return nil, nil, err

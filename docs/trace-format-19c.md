@@ -69,6 +69,10 @@ END OF STMT
   line `END OF STMT` as the terminator only once at least `len-4` bytes of
   text have been collected (statement text may legitimately contain such a
   line; tkprof gets this wrong).
+* In a CRLF (Windows) file `len` may count the `\r` of the statement text's
+  line breaks: the 12.2 and 19c Windows traces seen count one per break, an
+  11.2 trace only some. The parser strips them, so it counts them back toward
+  the `len-4` it needs.
 * PL/SQL blocks from SQL*Plus end with a newline, hence the empty line.
 * `dep` recursive depth, `uid` parsing schema, `lid` privilege user,
   `oct` command type (`v$sqlcommand`), `hv` hash value, `ad` library cache

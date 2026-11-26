@@ -1356,7 +1356,8 @@ real cut of io_waits.trc.
   with the selection, and counts statements that lost their SQL text. The view runs it on every
   plan under 256 MB. Tests run it on every fixture and set with whole, session, window,
   statement, executions, masked and dropped-bind selections; a cut of everything is the source
-  byte for byte plus the provenance lines.
+  byte for byte plus the provenance lines. A cut from a Windows
+  trace keeps CRLF line ends (2026-11-26; it wrote LF before): the statements' `len=` counts the `\r`.
 - **Bind values.** Keep, Mask (each value replaced by the redaction token, salted as the session)
   or None (BINDS blocks left out). A session opened with redacted or dropped values only cuts with
   masked or none: the trace text must not give back what the session hid.

@@ -169,7 +169,7 @@ func (p *Parser) unknown(line []byte) {
 
 func (p *Parser) processLine(line []byte) {
 	if p.cur != nil {
-		if k, _ := Classify(line, true); k == KindEndOfStmt && len(p.textBuf) >= p.cur.Len-lenSlack {
+		if k, _ := Classify(line, true); k == KindEndOfStmt && p.textLen() >= p.cur.Len-lenSlack {
 			p.count(KindEndOfStmt)
 			p.finishCursor()
 			return
@@ -203,6 +203,17 @@ func (p *Parser) processLine(line []byte) {
 		p.flushBinds()
 	}
 	p.classify(line)
+}
+
+// textLen is the length of the statement text collected so far as len= may
+// count it. In a CRLF file the \r stripped from each line break counts: a
+// statement sent with CRLF line ends has them in its len=. (Not all of them
+// need to count, so this only lowers what END OF STMT has to reach.)
+func (p *Parser) textLen() int {
+	if p.crlf && p.textLines > 1 {
+		return len(p.textBuf) + p.textLines - 1
+	}
+	return len(p.textBuf)
 }
 
 func (p *Parser) finishCursor() {

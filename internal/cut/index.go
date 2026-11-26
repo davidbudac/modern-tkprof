@@ -106,7 +106,7 @@ func scanFile(path string) (*fileIndex, error) {
 			continue
 		}
 		if bytes.HasPrefix(b, []byte("PARSING IN CURSOR #")) {
-			sql.start(b)
+			sql.start(b, r.crlf)
 		}
 		if fi.body == 0 {
 			if k := cls.Next(b); k == trace.KindHeader || k == trace.KindBlank {
@@ -400,7 +400,7 @@ func (x *indexes) parsingBlock(id model.ID) (lines [][]byte, from int, err error
 		for i, l := range ls {
 			switch {
 			case !sql.on && bytes.HasPrefix(l, []byte("PARSING IN CURSOR #")):
-				sql.start(l)
+				sql.start(l, x.isCRLF(f))
 			case sql.on && sql.next(l):
 				return ls[:i+1], from, nil
 			}
@@ -476,15 +476,16 @@ func (x *indexes) isStat(f, line int) bool {
 // small slack) were collected, so a statement whose text holds trace-like
 // lines (an "END OF STMT", markers, calls) stays one block.
 type sqlText struct {
-	on               bool
+	on, crlf         bool
 	want, got, lines int
 }
 
 const lenSlack = 4 // as trace.Parser
 
-// start begins a block at its PARSING IN CURSOR line.
-func (t *sqlText) start(header []byte) {
-	t.on, t.got, t.lines = true, 0, 0
+// start begins a block at its PARSING IN CURSOR line; crlf: the file's lines
+// end in \r\n, and next gets them without it.
+func (t *sqlText) start(header []byte, crlf bool) {
+	t.on, t.crlf, t.got, t.lines = true, crlf, 0, 0
 	t.want = 0
 	if i := bytes.Index(header, []byte(" len=")); i >= 0 {
 		t.want = int(leadingInt(header[i+5:]))
@@ -493,7 +494,11 @@ func (t *sqlText) start(header []byte) {
 
 // next takes a line inside the block; end reports the END OF STMT that closes it.
 func (t *sqlText) next(b []byte) (end bool) {
-	if string(b) == "END OF STMT" && t.got >= t.want-lenSlack {
+	got := t.got
+	if t.crlf && t.lines > 1 {
+		got += t.lines - 1 // as trace.Parser: len= may count the stripped \r
+	}
+	if string(b) == "END OF STMT" && got >= t.want-lenSlack {
 		t.on = false
 		return true
 	}
