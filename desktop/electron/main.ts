@@ -296,6 +296,7 @@ const commands: Record<string, Command> = {
     dataDir: dataDir(),
     logDir: logDir(),
     smokeOpen: devTools() ? process.env.MTKPROF_SMOKE_OPEN || null : null,
+    smokeUpdate: devTools() && process.env.MTKPROF_SMOKE_UPDATE === 'page',
   }),
   open_releases_page: () => shell.openExternal(RELEASES_URL),
   // only http(s), so a page can't launch local files or apps
@@ -391,7 +392,8 @@ ipcMain.handle('mtkprof:invoke', async (e, cmd: unknown, args: unknown) => {
 /**
  * Smoke runs of the updater (`MTKPROF_SMOKE=1`, the page is not driven): `MTKPROF_SMOKE_UPDATE=relaunch`
  * relaunches once (the new process logs whether it kept the environment, so the test profile);
- * `=install` checks, downloads and installs whatever update the check finds, then relaunches.
+ * `=install` checks, downloads and installs whatever update the check finds, then relaunches;
+ * `=page` leaves it to the page, which presses its own "Install and restart" (`app_info.smokeUpdate`).
  */
 async function smokeUpdate() {
   const mode = devTools() ? process.env.MTKPROF_SMOKE_UPDATE : undefined

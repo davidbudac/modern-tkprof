@@ -26,6 +26,7 @@ const LATEST = 'https://api.github.com/repos/davidbudac/modern-tkprof/releases/l
 const feedUrl = (tag: string) => `${RELEASES_URL}/download/${tag}/latest.json`
 /** temporary folders of downloads and of a macOS swap; removed on the next start */
 const STAGE = 'mtkprof-update-'
+const STALL_MS = 60_000
 
 export interface Available {
   version: string
@@ -195,8 +196,26 @@ async function download(o: Offer, progress: (done: number, total: number | null)
   const dir = await mkdtemp(path.join(app.getPath('temp'), STAGE))
   const name = artifactName(o.how, o.version)
   const file = path.join(dir, name)
-  const r = await net.fetch(o.url, { headers: { 'User-Agent': 'mtkprof-desktop' } })
-  if (!r.ok || !r.body) throw new Error(`GET ${o.url}: HTTP ${r.status}`)
+  // a download that stalls for STALL_MS fails (the toast offers the release page) instead of hanging
+  const stall = new AbortController()
+  let timer = setTimeout(() => stall.abort(), STALL_MS)
+  const alive = () => {
+    clearTimeout(timer)
+    timer = setTimeout(() => stall.abort(), STALL_MS)
+  }
+  let r: Response
+  try {
+    r = await net.fetch(o.url, { headers: { 'User-Agent': 'mtkprof-desktop' }, signal: stall.signal })
+  } catch (e) {
+    clearTimeout(timer)
+    await rm(dir, { recursive: true, force: true })
+    throw stall.signal.aborted ? new Error(`no answer from ${new URL(o.url).host} for ${STALL_MS / 1000} s`) : e
+  }
+  if (!r.ok || !r.body) {
+    clearTimeout(timer)
+    await rm(dir, { recursive: true, force: true })
+    throw new Error(`GET ${o.url}: HTTP ${r.status}`)
+  }
   const total = Number(r.headers.get('content-length')) || null
   const hash = newHash()
   const out = createWriteStream(file)
@@ -204,6 +223,7 @@ async function download(o: Offer, progress: (done: number, total: number | null)
   let last = 0
   try {
     for await (const chunk of r.body as unknown as AsyncIterable<Uint8Array>) {
+      alive()
       hash.update(chunk)
       if (!out.write(chunk)) await new Promise((res) => out.once('drain', res))
       done += chunk.length
@@ -216,7 +236,9 @@ async function download(o: Offer, progress: (done: number, total: number | null)
   } catch (e) {
     out.destroy()
     await rm(dir, { recursive: true, force: true })
-    throw e
+    throw stall.signal.aborted ? new Error(`the download stalled for ${STALL_MS / 1000} s`) : e
+  } finally {
+    clearTimeout(timer)
   }
   progress(done, total)
   try {
@@ -259,7 +281,12 @@ export async function installUpdate(): Promise<void> {
         throw e
       }
       const old = path.join(stage, 'previous.app')
-      await rename(how.bundle, old)
+      try {
+        await rename(how.bundle, old)
+      } catch (e) {
+        await rm(stage, { recursive: true, force: true })
+        throw e
+      }
       try {
         await rename(fresh, how.bundle)
       } catch (e) {

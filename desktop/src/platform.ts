@@ -212,6 +212,8 @@ export interface AppInfo {
   logDir: string
   /** `MTKPROF_SMOKE_OPEN` of a smoke run: a trace to open on start */
   smokeOpen: string | null
+  /** `MTKPROF_SMOKE_UPDATE=page` of a smoke run: install an offered update as its button would */
+  smokeUpdate: boolean
 }
 
 export async function appInfo(): Promise<AppInfo> {
@@ -223,6 +225,7 @@ export async function appInfo(): Promise<AppInfo> {
     dataDir: 'localStorage',
     logDir: 'browser console',
     smokeOpen: null,
+    smokeUpdate: false,
   }
 }
 

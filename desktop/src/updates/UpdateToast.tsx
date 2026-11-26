@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { appInfo } from '../platform'
 import { EXIT_MS, useExit } from '@lib/components/motion'
 import { fmtBytes } from '@lib'
 import { useEngine } from '../engine'
@@ -8,6 +9,7 @@ import { checkForUpdate, installUpdate, releaseUrl, updatesAvailable, useUpdateS
 /** after the start, so the check does not compete with the engine start and the workspace restore */
 const START_DELAY_MS = 4_000
 let checkedOnStart = false
+let smokeInstalled = false
 
 /**
  * The start's update check (setting `updateCheck`) and its toast: a newer version than the app's
@@ -30,6 +32,13 @@ export function UpdateToast() {
     }, START_DELAY_MS)
     return () => clearTimeout(t)
   }, [settings.updateCheck])
+
+  // smoke runs of the updater (MTKPROF_SMOKE_UPDATE=page): the button's own path, once
+  useEffect(() => {
+    if (state.kind !== 'available' || !state.installs || smokeInstalled) return
+    smokeInstalled = true
+    void appInfo().then((i) => (i.smokeUpdate ? installUpdate(() => engine.restart(engine.options)) : undefined))
+  }, [state, engine])
 
   const key = toastKey(state)
   const show = key !== null && key !== dismissed && !(state.kind === 'available' && state.version === settings.skippedVersion)

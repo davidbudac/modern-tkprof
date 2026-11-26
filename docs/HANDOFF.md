@@ -24,12 +24,16 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
   Electron app installs updates itself from the release's signed `latest.json` (the Tauri feed and key,
   `desktop/scripts/update-feed.mjs`, was `tauri-bridge.mjs`), verified in the main process
   (`electron/updatesig.ts`: minisign, BLAKE2b-512 from `@noble/hashes`, file name and version signed).
-  Verified on macOS arm64: this code built as 0.9.0 in a scratch folder (`MTKPROF_SMOKE_UPDATE=install`)
-  downloaded the real v0.9.1 from GitHub, verified it, swapped the bundle and relaunched into 0.9.1 with
-  the test profile (`codesign --verify --deep --strict` passes); the next start removes the leftovers.
-  It found an old bug: `will-quit` dropped the quit when the engine was already stopped (the app stayed
-  open); fixed. Not tried: the AppImage, the `.deb` (`pkexec`), Windows (its feed entry
-  `windows-x86_64-electron` only with `update-feed.mjs --with-windows`), the x64 Mac. Installs of v0.9.1
+  Verified on macOS arm64: this code built as 0.9.0 in a scratch folder downloaded the real v0.9.1 from
+  GitHub, verified it, swapped the bundle and relaunched into 0.9.1 with the test profile (`codesign
+  --verify --deep --strict` passes), driven from the main process (`MTKPROF_SMOKE_UPDATE=install`) and
+  through the page's own button path (`=page`); the next start removes the leftovers. It found an old
+  bug: `will-quit` dropped the quit when the engine was already stopped (the app stayed open); fixed.
+  Not tried: an install in `/Applications` that came from a browser-downloaded DMG (quarantine, macOS's
+  App Management; the first real update is that test, a refusal shows the release link), the AppImage,
+  the `.deb` (`pkexec`), Windows (its feed entry `windows-x86_64-electron` only with `update-feed.mjs
+  --with-windows`; the NSIS flags `--updated /S --force-run` follow electron-updater, not checked in the
+  NSIS sources), the x64 Mac. Installs of v0.9.1
   and older offer *Download* once more; the first release with this code updates itself from then on.
 - **2026-11-08 desktop review round** (`docs/REVIEW-DESKTOP-PERFORMANCE-UX-2026-11-08.md`): 14 findings on
   transitions, work preservation, opening, prompts, keyboard and the Cut view, all fixed on `main` after v0.6.0 in one

@@ -338,9 +338,12 @@ browser mode shows the download and install states.
 **Trying it.** A packaged build with `MTKPROF_SMOKE=1` takes `MTKPROF_UPDATE_FEED=<latest.json URL>`
 (the version comes from it; `scripts/update-feed.mjs … --partial --base http://127.0.0.1:<port>`
 writes one) and `MTKPROF_SMOKE_UPDATE=install` (check, download, install and relaunch from the main
-process, without the page) or `=relaunch` (a plain relaunch; the new run logs whether it kept the
-environment). Done 2026-11-26 on macOS arm64: this code built as 0.9.0 in a scratch folder updated
-itself to the real v0.9.1 from GitHub (see HANDOFF). Keep a locally signed test version at or below
+process, without the page), `=page` (the page presses its own *Install and restart* once offered:
+the download's progress events, its engine stop and `update_install`) or `=relaunch` (a plain
+relaunch; the new run logs whether it kept the environment). A build of the current code as an older
+version: `electron-builder --mac dir --arm64 -c.extraMetadata.version=0.9.0` (package.json stays).
+Done 2026-11-26 on macOS arm64 with `=install` and `=page`: this code built as 0.9.0 in a scratch
+folder updated itself to the real v0.9.1 from GitHub (see HANDOFF). Keep a locally signed test version at or below
 the newest release, so no "future" signed update exists.
 
 **The Tauri bridge.** Installs of v0.6.0 and older still run the Tauri updater: it reads
