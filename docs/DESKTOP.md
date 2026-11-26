@@ -1022,14 +1022,22 @@ From the first release after v0.5.0 the app asks the [releases page](https://git
 for a newer version a few seconds after every start (turn it off in *Settings → About → Check for
 updates on start*). When there is one, a note at the bottom right offers:
 
-- **Download**: opens that release's page; install the installer for your system over the app
-  (your tabs, settings, notes and connections stay). The app does not install updates itself.
+- **Install and restart** (from the release after v0.9.1): downloads the update, checks that it is
+  signed by mtkprof (the app refuses anything else), installs it over the app and starts it again;
+  your tabs, settings, notes and connections stay. On macOS it replaces the app where it is (keep it
+  in Applications, or another folder you can write; not on the disk image). On Linux the AppImage
+  replaces itself; the `.deb` asks for your password (`pkexec`). On Windows the installer runs
+  silently and starts the app (not offered yet: it has not been tried on Windows).
+- **Download**, where the app cannot install it there (the note says why): opens that release's
+  page; install the installer for your system over the app.
 - **Later**: hides it until the next start.
 - **Skip this version**: never offers that version on start again (*Check now* still finds it).
 
 *Settings → About → Check now* checks at any time and says what it found. The app needs to reach
 github.com; a failed check is only written to the log. v0.5.0 and earlier have no updater:
-install the next release by hand once.
+install the next release by hand once. v0.7.0 to v0.9.1 only offer *Download*: install the next
+release from its page once; it installs the ones after it itself. On macOS an update of the
+unsigned app may ask once more to allow mtkprof to use a remembered Assistant key.
 
 **Coming from v0.6.0** (the last build of the old shell): its *Install and restart* moves you to
 the new app once, on macOS and Linux; your tabs, settings, notes, connections and index cache

@@ -9,8 +9,8 @@
 # the app version in package.json matches the tag. Then runs scripts/ci-local.sh with every leg and
 # smoke, uploads everything in out/ (the installers and their SHA256SUMS as SHA256SUMS-desktop) and
 # adds the installers' checksums to the release notes. The installed apps find the release through
-# GitHub's "latest release" (electron/updates.ts). Tauri-era installs (v0.6.0 and older) read
-# latest.json there: scripts/tauri-bridge.mjs signs the Electron builds with the updater key
+# GitHub's "latest release" and install from its latest.json (electron/updates.ts), as Tauri-era
+# installs (v0.6.0 and older) do: scripts/update-feed.mjs signs the builds with the updater key
 # (~/.tauri/mtkprof-updater.key or TAURI_SIGNING_PRIVATE_KEY) and writes it; it is uploaded last.
 # Refuses when the key is missing or the app's Electron major is no longer supported (the newest
 # three majors are; a Chromium security fix reaches users only through an Electron upgrade).
@@ -57,9 +57,9 @@ e_latest=$(npm view electron version 2>/dev/null) || die "cannot ask the npm reg
   || die "Electron $e_have is out of support (newest $e_latest): upgrade (pnpm up electron@latest), smoke, then release"
 echo "release-local: Electron $e_have (newest $e_latest)"
 
-# the Tauri-era updater key: without it the installed v0.6.0 apps never learn of this release
+# the updater key: without it no installed app can install this release itself
 [ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ] || [ -f "$HOME/.tauri/mtkprof-updater.key" ] \
-  || die "no updater key (~/.tauri/mtkprof-updater.key or TAURI_SIGNING_PRIVATE_KEY): Tauri installs could not update to $tag"
+  || die "no updater key (~/.tauri/mtkprof-updater.key or TAURI_SIGNING_PRIVATE_KEY): installed apps could not update to $tag"
 [ $check_only -eq 0 ] || exit 0
 
 if [ $dry -eq 0 ]; then
@@ -82,9 +82,9 @@ for pat in "${req[@]}"; do
   ls out/$pat >/dev/null 2>&1 || die "out/ has no $pat; refusing a partial release"
 done
 
-# the Tauri-era updater's feed (signs the artifacts in out/, writes their .sig next to them)
+# the update feed (signs the artifacts in out/, writes their .sig next to them)
 manifest=out-logs/latest.json
-node scripts/tauri-bridge.mjs "$tag" out > "$manifest" || die "latest.json (the Tauri bridge) failed"
+node scripts/update-feed.mjs "$tag" out > "$manifest" || die "latest.json (scripts/update-feed.mjs) failed"
 
 # ---- 3. upload to the release ----
 cp out/SHA256SUMS out-logs/SHA256SUMS-desktop
@@ -101,7 +101,7 @@ add=out-logs/release-notes-desktop.md
 } > "$add"
 echo "--- added to the release notes ---"; cat "$add"; echo "---"
 upload=(gh release upload "$tag" "${files[@]}")
-# last, so the Tauri-era apps are only offered the update once every file it points at is up
+# last, so the apps are only offered the update once every file it points at is up
 upload_manifest=(gh release upload "$tag" "$manifest")
 if [ $dry -eq 1 ]; then
   echo "release-local: dry run, would run:"; printf '  %q' "${upload[@]}"; echo

@@ -223,25 +223,39 @@ Plan, protocol and the full decision log: `docs/PLAN-DESKTOP.md`.
 - Internal team tool for Windows, macOS and Linux (all first-class); private,
   unsigned GitHub releases. Traces of 1–2 GB are the ceiling.
 - Updates (decided 2026-11-08, replacing "no updater"; narrowed 2026-11-09
-  with the Electron shell): the app asks GitHub for the newest release on every
-  start (setting, on by default) and, when it is newer, offers *Download*,
-  which opens that release's page. It does not install in place: the Tauri
-  updater's signed install (minisign, `latest.json`, `requireSignedVersion`)
-  has no Electron replacement yet. electron-updater was not taken: on macOS it
-  needs a code-signed app (Squirrel.Mac) and it checks hashes, not a signature
-  of ours. An in-place install with the same guarantees (a signature over the
-  artifact and its version, verified in the main process) is open. OS code
-  signing stays out of scope.
+  with the Electron shell; in place again 2026-11-26): the app asks GitHub for
+  the newest release on every start (setting, on by default) and, when it is
+  newer, offers *Install and restart*. The download is the release's signed
+  artifact for the platform, named in that release's `latest.json`
+  (`desktop/scripts/update-feed.mjs`): the same feed and the same minisign key
+  as the Tauri updater's, so no second key and no second pipeline. The main
+  process hashes the download as it arrives (BLAKE2b-512 from `@noble/hashes`:
+  Electron's BoringSSL has none) and verifies the signature with the public key
+  built in, including the trusted comment, which must name this platform's file
+  and the offered version, newer than the app's; only then does anything open
+  the file. The page names nothing (no URL, file or version), it only asks to
+  check, download and install. Install per kind: macOS swaps the `.app` bundle
+  (extracted next to it, renamed, the old one removed on the next start), the
+  AppImage replaces itself, the `.deb` goes through `pkexec dpkg -i`, Windows
+  runs the NSIS installer silently (`--updated /S --force-run`; under a feed key
+  the Tauri updater does not read, and only with `--with-windows` until tried
+  there); then the app relaunches. Where none applies (a translocated or
+  disk-image app, a folder the user cannot write, no feed entry, a dev build) it
+  stays *Download*, the release page. electron-updater was not taken: on macOS
+  it needs a code-signed app (Squirrel.Mac) and it checks hashes, not a
+  signature of ours. OS code signing stays out of scope.
 - The Tauri bridge (2026-11-09): installs of v0.6.0 and older keep their own
   updater, which reads `latest.json` of the newest release. So every release
   also ships the Electron app in the shapes that updater installs, signed with
-  the same minisign key and bound to the version (`scripts/tauri-bridge.mjs`;
+  the same minisign key and bound to the version (`scripts/update-feed.mjs`;
   `release-local.sh` refuses without the key): the `.app.tar.gz` on macOS (it
   swaps the bundle and relaunches through LaunchServices; tried end to end from
   0.6.0 on arm64), the AppImage and the `.deb` (package `mtkprof` in both
   shells, so dpkg upgrades it). Windows only with `--with-windows` once tried
   there: its installer removes the Tauri install first (`build/installer.nsh`).
-  Kept until no Tauri install is left to update; then `latest.json` goes.
+  The Tauri keys of `latest.json` stay until no Tauri install is left; the
+  feed itself stays, the Electron app reads it. The key matters to every
+  install now: without it no installed app can update itself.
 - The Go core is the engine: `mtkprof engine` runs locally as a sidecar
   process, holds N open traces, always builds in aggregate + spill mode, and
   keeps the spill directory as a persistent index cache (user cache dir,

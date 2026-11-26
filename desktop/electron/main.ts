@@ -17,7 +17,7 @@ import { EVENT as OPEN_EVENT, OpenQueue, pathsOfArgs } from './open'
 import { cacheDir, dataDir, isUnder, logDir, setElectronPaths } from './paths'
 import { KeyCommands, Secrets } from './secrets'
 import { storeDelete, storeFlush, storeLoad, storeSet } from './store'
-import { checkForUpdate, RELEASES_URL } from './updates'
+import { checkForUpdate, cleanUpUpdates, downloadUpdate, installUpdate, RELEASES_URL } from './updates'
 import { SafeStorageVault, tauriKeychain } from './vault'
 import { loadWindowState, trackWindowState } from './windowstate'
 
@@ -307,10 +307,10 @@ const commands: Record<string, Command> = {
   },
   take_open_requests: () => opens.take(),
   update_check: () => checkForUpdate(),
-  relaunch: () => {
-    app.relaunch()
-    app.quit()
-  },
+  // progress as `update-progress` events; the signature is verified before the command resolves
+  update_download: () => downloadUpdate((done, total) => emit('update-progress', { done, total })),
+  // the page stops the engine first; the app then relaunches (or the installer starts it)
+  update_install: () => installUpdate(),
   log: (a) => {
     const m = typeof a.message === 'string' ? a.message : String(a.message ?? '')
     if (a.level === 'warn') log.warn(m, 'webview')
@@ -388,6 +388,35 @@ ipcMain.handle('mtkprof:invoke', async (e, cmd: unknown, args: unknown) => {
  * CI smoke runs (`MTKPROF_SMOKE=1 MTKPROF_SMOKE_KILL_AFTER=<seconds>`) kill the engine once, that
  * many seconds after it first reports ready, so a screenshot after it shows the automatic restart.
  */
+/**
+ * Smoke runs of the updater (`MTKPROF_SMOKE=1`, the page is not driven): `MTKPROF_SMOKE_UPDATE=relaunch`
+ * relaunches once (the new process logs whether it kept the environment, so the test profile);
+ * `=install` checks, downloads and installs whatever update the check finds, then relaunches.
+ */
+async function smokeUpdate() {
+  const mode = devTools() ? process.env.MTKPROF_SMOKE_UPDATE : undefined
+  if (!mode) return
+  log.info(`smoke update: ${mode} (profile ${process.env.MTKPROF_PROFILE ?? 'none'})`)
+  await new Promise((r) => setTimeout(r, 4_000))
+  try {
+    if (mode === 'relaunch') {
+      process.env.MTKPROF_SMOKE_UPDATE = 'relaunched'
+      app.relaunch({ args: [] })
+      app.quit()
+    } else if (mode === 'install') {
+      process.env.MTKPROF_SMOKE_UPDATE = 'installed'
+      const a = await checkForUpdate()
+      log.info(`smoke update: check: ${JSON.stringify(a)}`)
+      if (!a?.installs) return
+      await downloadUpdate((done, total) => log.info(`smoke update: ${done} of ${total ?? '?'} bytes`))
+      await engine.stop()
+      await installUpdate()
+    }
+  } catch (e) {
+    log.warn(`smoke update: ${(e as Error).message}`)
+  }
+}
+
 async function smokeKill() {
   const secs = Number.parseInt(process.env.MTKPROF_SMOKE_KILL_AFTER ?? '', 10)
   if (!devTools() || !Number.isFinite(secs)) return
@@ -451,6 +480,8 @@ void app.whenReady().then(() => {
   createWindow()
   requestOpen(pathsOfArgs(argsOf(process.argv), process.cwd()))
   void smokeKill()
+  void cleanUpUpdates()
+  void smokeUpdate()
 })
 
 // the app ends with its window, on macOS too (as the Tauri shell did)
@@ -462,8 +493,10 @@ app.on('will-quit', (e) => {
   if (stopped) return
   e.preventDefault()
   // the engine also exits on its own when our end of its stdin closes
+  // the quit again on a later turn: an engine that was already stopped settles within this event,
+  // and a quit from inside it is dropped (the app stayed open after the update's engine stop)
   void engine.stop().finally(() => {
     stopped = true
-    app.quit()
+    setImmediate(() => app.quit())
   })
 })

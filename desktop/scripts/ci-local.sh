@@ -115,7 +115,7 @@ macos_target() { # <arch> <name>
   rm -rf release
   run_step "$n: dmg" node_modules/.bin/electron-builder --mac dmg --"$a" || return 1
   collect_installers || return 1
-  # the bundle as the Tauri-era updater installs it (scripts/tauri-bridge.mjs signs it at release)
+  # the bundle as the updaters install it (scripts/update-feed.mjs signs it at release)
   local dir=release/mac-$a tauri_arch=aarch64 v
   [ "$a" = x64 ] && dir=release/mac tauri_arch=x64
   v=$(node -p "require('./package.json').version")

@@ -16,7 +16,7 @@ import { BindSeg } from './BindSeg'
 import { BindPreview, Card, Row, Switch, ThemeTiles } from './parts'
 import { engineOptionsOf, sameEngineOptions, useSettings } from './settings'
 import { TrashIcon } from '../ui/icons'
-import { checkForUpdate, installUpdate, installsItself, updatesAvailable, useUpdateState, type UpdateState } from '../updates/updates'
+import { checkForUpdate, installUpdate, updatesAvailable, useUpdateState, type UpdateState } from '../updates/updates'
 import './settings.css'
 
 const when = (iso: string) => {
@@ -215,7 +215,7 @@ function UpdateRows({ app }: { app: string }) {
       </Row>
       <Row label="Updates" desc={updatesAvailable ? updateText(state, app, settings.skippedVersion) : 'Not in the dev browser mode'}>
         {state.kind === 'available' ? (
-          <button onClick={() => void installUpdate(() => engine.restart(engine.options))}>{installsItself ? 'Install and restart' : 'Download'}</button>
+          <button onClick={() => void installUpdate(() => engine.restart(engine.options))}>{state.installs ? 'Install and restart' : 'Download'}</button>
         ) : (
           <button onClick={() => void checkForUpdate()} disabled={!updatesAvailable || busy}>Check now</button>
         )}
@@ -234,7 +234,7 @@ function updateText(s: UpdateState, app: string, skipped: string): string {
     case 'current':
       return `mtkprof ${app} is the newest version (checked ${new Date(s.at).toLocaleTimeString()})`
     case 'available':
-      return `mtkprof ${s.version} is available${s.version === skipped ? ' (skipped: not offered on start)' : ''}`
+      return `mtkprof ${s.version} is available${s.version === skipped ? ' (skipped: not offered on start)' : ''}${s.installs ? '' : `; download it from the releases page (${s.why ?? 'the app cannot install it here'})`}`
     case 'downloading':
       return `Downloading mtkprof ${s.version}…${s.total ? ` ${Math.round((100 * s.done) / s.total)}%` : ''}`
     case 'installing':

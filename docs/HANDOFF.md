@@ -20,6 +20,17 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
   installers (DMG arm64/x64, deb, AppImage, NSIS) and the Tauri bridge (`.app.tar.gz` per arch and `latest.json`,
   signed with `~/.tauri/mtkprof-updater.key`; no Windows entry) in one GitHub release; notes
   `docs/releases/v0.9.0.md`. Before it: v0.8.0 (2026-11-18, the 10053 reader and Plan replay; Windows unsmoked), v0.7.0 (2026-11-09, from `36f1e14`, PR #16), the first with the Electron app.
+- **In-place updates** (2026-11-26, not released; DESIGN § Desktop app, desktop/README.md § Updates): the
+  Electron app installs updates itself from the release's signed `latest.json` (the Tauri feed and key,
+  `desktop/scripts/update-feed.mjs`, was `tauri-bridge.mjs`), verified in the main process
+  (`electron/updatesig.ts`: minisign, BLAKE2b-512 from `@noble/hashes`, file name and version signed).
+  Verified on macOS arm64: this code built as 0.9.0 in a scratch folder (`MTKPROF_SMOKE_UPDATE=install`)
+  downloaded the real v0.9.1 from GitHub, verified it, swapped the bundle and relaunched into 0.9.1 with
+  the test profile (`codesign --verify --deep --strict` passes); the next start removes the leftovers.
+  It found an old bug: `will-quit` dropped the quit when the engine was already stopped (the app stayed
+  open); fixed. Not tried: the AppImage, the `.deb` (`pkexec`), Windows (its feed entry
+  `windows-x86_64-electron` only with `update-feed.mjs --with-windows`), the x64 Mac. Installs of v0.9.1
+  and older offer *Download* once more; the first release with this code updates itself from then on.
 - **2026-11-08 desktop review round** (`docs/REVIEW-DESKTOP-PERFORMANCE-UX-2026-11-08.md`): 14 findings on
   transitions, work preservation, opening, prompts, keyboard and the Cut view, all fixed on `main` after v0.6.0 in one
   multi-agent run (five parallel worktrees, reviewed, merged); the tracking table there has the evidence per finding,
@@ -29,7 +40,7 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
   `window.mtkprof`, esbuild), packaged by electron-builder (`electron-builder.yml`); the UI reaches the shell
   only through `src/shell.ts`. Hardened after two reviews of the shell (least-privilege file access, fuses,
   permission handlers, CSP, checked engine options; the engine's cache cleanup deletes only its own names).
-  Tauri installs (v0.6.0) move over through their own updater: `scripts/tauri-bridge.mjs` signs the Electron
+  Tauri installs (v0.6.0) move over through their own updater: `scripts/update-feed.mjs` signs the Electron
   builds with the old key and writes `latest.json` (desktop/README.md § Updates); Windows is left out of it
   (`--with-windows`) until tried there. Verified on 2026-11-09:
   - CI (`desktop/scripts/ci-local.sh --arm64` and the Linux/Windows legs, root `scripts/ci-local.sh --strict`):
@@ -281,7 +292,9 @@ CLI: 118 MB trace → text report 0.61 s / 220 MB RSS, HTML 12.7 MB in 0.78 s; 1
   `desktop/scripts/release-local.sh <tag>` on the Mac (needs the updater key).
 - **Updater on Windows and Linux**: v0.6.0 → next is the first real update there; the macOS install and
   relaunch were tested end to end against a local feed, Windows (NSIS passive) and Linux (AppImage, deb
-  via pkexec) never.
+  via pkexec) never. The same holds for the Electron app's own in-place install (2026-11-26): tried on
+  macOS arm64 only. To try the AppImage: a build as an older version with `MTKPROF_SMOKE=1
+  MTKPROF_PROFILE=… MTKPROF_SMOKE_UPDATE=install`; Windows: release with `--with-windows` once tried.
 - **Windows 11** has never been run: `ssh.exe` + `SSH_ASKPASS`, the OpenSSH agent pipe, the NSIS installer
   (cross-built only; smoke with `desktop/scripts/smoke.sh x86_64-pc-windows-msvc windows-x64` from Git Bash),
   and the plan's "UI verified by screenshot on Windows" has no record.

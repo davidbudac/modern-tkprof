@@ -1,13 +1,14 @@
 import { useSyncExternalStore } from 'react'
 import { engineStop } from '../engine/commands'
 import { inApp, logInfo, logWarn } from '../platform'
-import { invoke } from '../shell'
+import { invoke, listen } from '../shell'
 
 /**
  * The app's updates: the shell (`electron/updates.ts`) compares the newest GitHub release with the
- * app's version. One check on start (the `updateCheck` setting), more from Settings → About. The
- * Electron app does not install updates itself yet (`installsItself`): "Download" opens the
- * release page with the installers. The download/install states stay for an in-place updater.
+ * app's version. One check on start (the `updateCheck` setting), more from Settings → About. Where
+ * the shell can install it (`installs`: a signed download for this platform and an install it can
+ * replace), "Install and restart" downloads it, the shell verifies its signature, the engine stops,
+ * the shell installs it and relaunches the app. Else "Download" opens the release page.
  *
  * Dev browser mode: no updater; `?mock=update` pretends a newer version exists, to look at the UI.
  */
@@ -17,7 +18,7 @@ export type UpdateState =
   | { kind: 'checking' }
   /** no newer version than the app's */
   | { kind: 'current'; at: number }
-  | { kind: 'available'; version: string; current: string; date?: string }
+  | { kind: 'available'; version: string; current: string; date?: string; installs: boolean; why?: string }
   | { kind: 'downloading'; version: string; done: number; total: number | null }
   | { kind: 'installing'; version: string }
   | { kind: 'error'; message: string; during: 'check' | 'install'; version?: string }
@@ -27,6 +28,8 @@ interface Pending {
   version: string
   currentVersion: string
   date?: string
+  installs: boolean
+  why?: string
   download(onEvent: (e: DownloadEvent) => void): Promise<void>
   install(): Promise<void>
 }
@@ -56,9 +59,6 @@ export function useUpdateState(): UpdateState {
 /** The updater is there: the app, or the dev browser with `?mock=update`. */
 export const updatesAvailable = inApp || mockUpdate()
 
-/** Installing replaces the app and relaunches it (the mock); false: it opens the release page. */
-export const installsItself = !inApp
-
 function mockUpdate(): boolean {
   return typeof location !== 'undefined' && new URLSearchParams(location.search).get('mock') === 'update'
 }
@@ -78,8 +78,8 @@ export async function checkForUpdate(): Promise<UpdateState> {
       set({ kind: 'current', at: Date.now() })
       logInfo('update check: up to date')
     } else {
-      set({ kind: 'available', version: u.version, current: u.currentVersion, date: u.date })
-      logInfo(`update check: ${u.version} available (this is ${u.currentVersion})`)
+      set({ kind: 'available', version: u.version, current: u.currentVersion, date: u.date, installs: u.installs, why: u.why })
+      logInfo(`update check: ${u.version} available (this is ${u.currentVersion}); ${u.installs ? 'installs itself' : `a download: ${u.why}`}`)
     }
   } catch (e) {
     pending = null
@@ -90,14 +90,26 @@ export async function checkForUpdate(): Promise<UpdateState> {
 }
 
 async function appCheck(): Promise<Pending | null> {
-  const a = await invoke<{ version: string; currentVersion: string; date?: string } | null>('update_check')
+  const a = await invoke<{ version: string; currentVersion: string; date?: string; installs: boolean; why?: string } | null>('update_check')
   if (!a) return null
   return {
     ...a,
-    async download() {},
-    async install() {
-      await invoke('open_external_url', { url: releaseUrl(a.version) })
+    async download(on) {
+      let seen = 0
+      const off = await listen<{ done: number; total: number | null }>('update-progress', ({ payload }) => {
+        if (seen === 0) on({ event: 'Started', data: { contentLength: payload.total ?? undefined } })
+        on({ event: 'Progress', data: { chunkLength: payload.done - seen } })
+        seen = payload.done
+      })
+      try {
+        await invoke('update_download')
+      } finally {
+        off()
+      }
+      on({ event: 'Finished' })
     },
+    // the shell installs it and ends the app: it relaunches (or the Windows installer starts it)
+    install: () => invoke('update_install'),
   }
 }
 
@@ -107,6 +119,7 @@ async function mockCheck(): Promise<Pending> {
     version: '9.9.9',
     currentVersion: (await import('../../package.json')).version,
     date: new Date().toISOString(),
+    installs: true,
     async download(on) {
       const total = 18 * 2 ** 20
       on({ event: 'Started', data: { contentLength: total } })
@@ -123,16 +136,16 @@ async function mockCheck(): Promise<Pending> {
 }
 
 /**
- * Downloads the update, then stops the engine (on Windows the installer replaces its binary) and
- * installs it and relaunches the app. When the install fails the engine is started again
+ * Downloads the update (the shell verifies its signature), then stops the engine (the install
+ * replaces its binary) and has the shell install it and relaunch the app. When the install fails the engine is started again
  * (`restartEngine`: the engine context's restart, with the settings' options) and the error is the state.
  */
 export async function installUpdate(restartEngine: () => Promise<void>): Promise<void> {
   const u = pending
   if (!u || state.kind !== 'available') return
   const version = u.version
-  if (!installsItself) {
-    await u.install().catch((e) => logWarn(`update ${version}: open the release page: ${message(e)}`))
+  if (!u.installs) {
+    await invoke('open_external_url', { url: releaseUrl(version) }).catch((e) => logWarn(`update ${version}: open the release page: ${message(e)}`))
     return
   }
   let done = 0
@@ -156,7 +169,6 @@ export async function installUpdate(restartEngine: () => Promise<void>): Promise
     if (inApp) await engineStop()
     stopped = true
     await u.install()
-    if (inApp) await invoke('relaunch')
   } catch (e) {
     set({ kind: 'error', message: `install: ${message(e)}`, during: 'install', version })
     logWarn(`update ${version}: install: ${message(e)}`)

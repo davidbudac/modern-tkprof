@@ -315,16 +315,38 @@ release notes. It never creates or pushes the tag. Releases v0.3.1 and earlier a
 
 `src/updates/` (user side in `../docs/DESKTOP.md` § Updates). On start (setting `updateCheck`) and
 from Settings → About the main process asks `api.github.com/repos/davidbudac/modern-tkprof/releases/latest`
-(`electron/updates.ts`); a newer, non-draft, non-prerelease tag is offered in a toast, and
-*Download* opens its release page. The app does not install updates itself: the Tauri updater's
-signed in-place install (minisign key, `latest.json`) has no replacement yet (DESIGN § Desktop
-app). `?mock=update` in the dev browser mode still shows the old download and install states
-(`installsItself`), for the day an in-place install comes back.
+(`electron/updates.ts`); a newer, non-draft, non-prerelease tag is offered in a toast. The app then
+reads that release's `latest.json` (written by `scripts/update-feed.mjs`) and installs in place:
+
+| install | feed key | it downloads | and then |
+|---|---|---|---|
+| macOS `.app` | `darwin-{aarch64,x86_64}-app` | `mtkprof_<v>_<aarch64,x64>.app.tar.gz` | extracts it next to the bundle, checks its `Info.plist` (id, version), renames the old bundle aside and the new one in, relaunches; the old one goes at the next start |
+| Linux AppImage (`$APPIMAGE`) | `linux-x86_64-appimage` | `mtkprof_<v>_amd64.AppImage` | replaces the AppImage, relaunches it |
+| Linux .deb (`/opt/…`, package `mtkprof`) | `linux-x86_64-deb` | `mtkprof_<v>_amd64.deb` | `pkexec dpkg -i`, relaunches |
+| Windows NSIS | `windows-x86_64-electron` (only with `--with-windows`) | `mtkprof_<v>_x64-setup.exe` | runs it with `--updated /S --force-run` and quits; the installer starts the app. Never run on Windows |
+
+Before anything opens the download, `electron/updatesig.ts` checks it: the minisign signature
+(prehashed: Ed25519 over BLAKE2b-512, hashed while it downloads; `@noble/hashes`, as Electron has no
+`blake2b512`) against the public key built in, the signed trusted comment naming this kind's file
+name and the offered version, newer than the app's. The page passes no URL, path or version: it
+calls `update_check`, `update_download` (progress as `update-progress` events) and, after it stops
+the engine, `update_install`. Where the app cannot install (a dev build, macOS App Translocation or
+a disk image, a folder it cannot write, no `pkexec`, arm64 Linux, no `latest.json` or no entry for
+the platform) the toast says why and *Download* opens the release page. `?mock=update` in the dev
+browser mode shows the download and install states.
+
+**Trying it.** A packaged build with `MTKPROF_SMOKE=1` takes `MTKPROF_UPDATE_FEED=<latest.json URL>`
+(the version comes from it; `scripts/update-feed.mjs … --partial --base http://127.0.0.1:<port>`
+writes one) and `MTKPROF_SMOKE_UPDATE=install` (check, download, install and relaunch from the main
+process, without the page) or `=relaunch` (a plain relaunch; the new run logs whether it kept the
+environment). Done 2026-11-26 on macOS arm64: this code built as 0.9.0 in a scratch folder updated
+itself to the real v0.9.1 from GitHub (see HANDOFF). Keep a locally signed test version at or below
+the newest release, so no "future" signed update exists.
 
 **The Tauri bridge.** Installs of v0.6.0 and older still run the Tauri updater: it reads
 `latest.json` of the newest release, takes the entry of its platform and bundle, checks the
 download's minisign signature against the public key built into it and that the signature names
-the announced version. `scripts/tauri-bridge.mjs <tag> out` signs the Electron builds for it with
+the announced version. `scripts/update-feed.mjs <tag> out` signs the Electron builds for it with
 `@tauri-apps/cli signer sign --app-version` and prints that manifest:
 
 | Tauri install | it downloads | and then |
@@ -339,7 +361,7 @@ the announced version. `scripts/tauri-bridge.mjs <tag> out` signs the Electron b
   one). Back it up: without it the Tauri installs cannot be moved over, only reinstalled by hand.
 - **Trying it** (done 2026-11-09 on arm64, 0.6.0 → 0.7.0): build the last Tauri app from tag
   `tauri-final` with `--config '{"identifier":"com.davidbudac.mtkprof.bridgetest","plugins":{"updater":{"endpoints":["http://127.0.0.1:8765/latest.json"],"dangerousInsecureTransportProtocol":true}}}'`,
-  pack the Electron `.app` into a folder, `node scripts/tauri-bridge.mjs v<new> <folder> --partial
+  pack the Electron `.app` into a folder, `node scripts/update-feed.mjs v<new> <folder> --partial
   --base http://127.0.0.1:8765 > <folder>/latest.json`, serve the folder on that port, `launchctl
   setenv MTKPROF_SMOKE 1; launchctl setenv MTKPROF_PROFILE <dir>` (the relaunch goes through
   LaunchServices, so the Electron app's test profile must come from launchd; unset both after),
