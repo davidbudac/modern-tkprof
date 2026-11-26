@@ -93,7 +93,7 @@ export interface Grid {
 
 export interface PlanMatch {
   plan: Plan | null
-  /** the dump's STAT lines (a dump the model split is joined again: dumpLines) */
+  /** the dump's STAT lines */
   lines: PlanLine[]
   /** the STAT lines were written for this execution */
   exact: boolean
@@ -155,7 +155,7 @@ export function planOfExecution(doc: TraceDoc, stmt: ID, trace: ExecTrace): Plan
   const ex = trace.calls.find((c) => c.kind === CallKind.exec)
   if (!ex) return none
   const all = doc.plansOf(stmt)
-  // dumps start at id=1; a piece that does not is the rest of a dump the model split (see dumpLines)
+  // dumps start at id=1; one that does not is the end of a dump the file starts in
   const plans = all.filter((p) => p.planHash === ex.plh && p.n > 0 && doc.planLines[p.first]?.id === 1)
   if (!plans.length) return none
   const c = doc.calls
@@ -166,29 +166,12 @@ export function planOfExecution(doc: TraceDoc, stmt: ID, trace: ExecTrace): Plan
     if (c.cursor[i] === ex.cursor && c.kind[i] === CallKind.exec) { nextExec = c.line[i]; break }
   }
   const own = plans.find((p) => p.cursor === ex.cursor && p.line > ex.line && p.line < nextExec)
-  if (own) return { plan: own, lines: dumpLines(all, doc.planLines, own), exact: true, fromExecNo: ex.execNo }
+  const linesOf = (p: Plan) => doc.planLines.slice(p.first, p.first + p.n)
+  if (own) return { plan: own, lines: linesOf(own), exact: true, fromExecNo: ex.execNo }
   const near = plans.slice().sort((a, b) => (Number(b.cursor === ex.cursor) - Number(a.cursor === ex.cursor)) || Math.abs(a.line - ex.line) - Math.abs(b.line - ex.line))[0]
   let fromExecNo = 0
   for (const i of ids) if (c.cursor[i] === near.cursor && c.kind[i] === CallKind.exec && c.line[i] < near.line) fromExecNo = c.execNo[i]
-  return { plan: near, lines: dumpLines(all, doc.planLines, near), exact: false, fromExecNo }
-}
-
-/**
- * The STAT lines of the dump that starts with plan `start`. The model starts a plan wherever STAT lines are not adjacent,
- * and an interleaved 10053 trace writes optimizer lines between them (opt_interleaved.trc): the plans of the same cursor and
- * plan hash right after it whose ids go on and whose parents are in the dump so far are the rest of it.
- */
-export function dumpLines(plans: readonly Plan[], planLines: readonly PlanLine[], start: Plan): PlanLine[] {
-  const out = planLines.slice(start.first, start.first + start.n)
-  const ids = new Set(out.map((l) => l.id))
-  for (let k = plans.indexOf(start) + 1; k < plans.length; k++) {
-    const p = plans[k]
-    const first = planLines[p.first]
-    if (p.cursor !== start.cursor || p.planHash !== start.planHash || !p.n || !first) break
-    if (first.id === 1 || first.id <= out[out.length - 1].id || !ids.has(first.parentId)) break
-    for (const l of planLines.slice(p.first, p.first + p.n)) { out.push(l); ids.add(l.id) }
-  }
-  return out
+  return { plan: near, lines: linesOf(near), exact: false, fromExecNo }
 }
 
 /** The replay of an execution trace on its plan (`replayOf` finds the plan in the document). */

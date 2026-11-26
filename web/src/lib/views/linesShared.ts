@@ -80,14 +80,15 @@ export function refClickOf(
     const c = ids && ids.cursor >= 0 ? doc.cursors[ids.cursor] : undefined
     return c && c.number === number ? c : cursorByNumber(number, line)
   }
-  /** The line of the plan line with `obj` in the plans of `stmt` in this file (the plan nearest to `line`), the STAT lines being adjacent from the plan's line. */
+  /** The line of the plan line with `obj` in the plans of `stmt` in this file (the one nearest to `line`). */
   const planLineOfObj = (stmt: number, obj: number, line: number) => {
     let best: number | undefined
     for (const p of doc.plansOf(stmt)) {
       if (p.line <= 0 || doc.fileOfCursor(p.cursor) !== file) continue
       for (let k = 0; k < p.n; k++) {
-        if (doc.planLines[p.first + k]?.obj !== obj) continue
-        const at = p.line + k
+        const pl = doc.planLines[p.first + k]
+        if (pl?.obj !== obj) continue
+        const at = pl.line
         if (best === undefined || Math.abs(at - line) < Math.abs(best - line)) best = at
       }
     }

@@ -1811,7 +1811,7 @@ Question: which part of my SQL text costs the time?
   several, and the shares switch to the calls' time. Calls both in and out of plan fragments: the view says the split
   is not known.
 - **Never a wrong picture**: DML, PL/SQL blocks, text it cannot parse and dumps without statistics or time show the
-  table with a note. A STAT dump split by other lines is joined first (Replay's `dumpLines`).
+  table with a note.
 - Not built from the concept: the hint underline and the data callouts (rows read, the TEMP spill).
 
 ## Search map (decided 2026-11-19, concept 4 of the third round)

@@ -5,7 +5,7 @@ import { fmtCompact, fmtDur, fmtInt } from './format'
 
 export interface FlowNode {
   line: PlanLine
-  /** position of the line in the dump: its STAT line is `plan.line + index`; -1 for the statement line (id 0) that several
+  /** position of the line in the dump (its STAT line is `line.line`); -1 for the statement line (id 0) that several
    *  top-level row sources hang off, which STAT does not print */
   index: number
   /** depth in the tree (root 0); `line.depth` for a well-formed dump */
@@ -113,7 +113,7 @@ export function rowFlow(lines: readonly PlanLine[]): RowFlow {
     const sum = (k: 'timeUs' | 'cr' | 'pr' | 'pw') => top.reduce((a, x) => a + x.line[k], 0)
     const main = top[top.length - 1].line
     const line: PlanLine = {
-      plan: main.plan, id: 0, parentId: -1, pos: 0, depth: -1, obj: 0, op: 'STATEMENT', object: '', rows: main.rows, starts: 1,
+      plan: main.plan, line: 0, id: 0, parentId: -1, pos: 0, depth: -1, obj: 0, op: 'STATEMENT', object: '', rows: main.rows, starts: 1,
       cr: sum('cr'), pr: sum('pr'), pw: sum('pw'), timeUs: sum('timeUs'), cost: -1, size: -1, card: -1, hasStats,
     }
     statement = { line, index: -1, depth: 0, parent: null, children: top, rows: line.rows, inRows: 0, est: -1, estRows: -1, inclusiveUs: line.timeUs, selfUs: 0, selfCr: 0, selfPr: 0, selfPw: 0, clamped: false }

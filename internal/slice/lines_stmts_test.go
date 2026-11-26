@@ -140,8 +140,8 @@ func TestAnnotStmtIDs(t *testing.T) {
 				// (a plan sits in the file of its cursor or a later one of a chain: the server's own list says which)
 				for _, pl := range e.s.files()[fi].plans {
 					p := &m.Plans[pl.id]
-					for n := 0; n < int(p.N); n++ {
-						check("stat", p.Line+n, p.Statement)
+					for _, l := range m.PlanLines[p.First : p.First+p.N] {
+						check("stat", l.Line, p.Statement)
 					}
 				}
 				for i := range m.Cursors {

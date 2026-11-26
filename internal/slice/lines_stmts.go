@@ -230,14 +230,14 @@ func (s *Server) stmtClaims(ctx context.Context, fi int, li *trace.LineIndex, f 
 			out = append(out, claim{from, from, int32(cur.Statement)}) // (the rule only)
 		}
 	}
-	// plans: the STAT lines of a dump are adjacent
+	// plans: the runs of a dump's STAT lines
 	for _, p := range f.plans {
 		if p.id < 0 || int(p.id) >= len(s.m.Plans) {
 			continue
 		}
 		pl := &s.m.Plans[p.id]
-		if pl.N > 0 {
-			out = append(out, claim{p.line, p.line + int(pl.N) - 1, int32(pl.Statement)})
+		for _, r := range statRuns(s.m, pl) {
+			out = append(out, claim{r[0], r[1], int32(pl.Statement)})
 		}
 	}
 	// BINDS blocks: the block belongs to the first call after it whose bind set starts at or before it

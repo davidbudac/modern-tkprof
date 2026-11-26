@@ -370,8 +370,16 @@ func (o *emitter) insertPlans(f, ln int32) {
 	m := o.c.m
 	for _, id := range ids {
 		pl := &m.Plans[id]
-		lines, err := o.c.idx.readLines(int(f), pl.Line, int(pl.N))
-		if err != nil || len(lines) == 0 {
+		var lines [][]byte
+		var at []int // their line numbers: other lines can sit between a dump's STAT lines
+		for _, l := range m.PlanLines[pl.First : pl.First+pl.N] {
+			got, err := o.c.idx.readLines(int(f), l.Line, 1)
+			if err != nil || len(got) != 1 {
+				continue
+			}
+			lines, at = append(lines, got[0]), append(at, l.Line)
+		}
+		if len(lines) == 0 {
 			continue
 		}
 		st := &m.Statements[pl.Statement]
@@ -383,7 +391,7 @@ func (o *emitter) insertPlans(f, ln int32) {
 		p := &Piece{Kind: kind, Title: "Plan of " + sqlName(st), File: int(f), SQL: st.SQLID,
 			Reason: fmt.Sprintf("STAT lines dumped at line %d, %s. Placed after the cursor's last kept call (line %d), so the new file keeps the row-source statistics.", pl.Line, when, ln)}
 		for i, l := range lines {
-			it := &item{label: lab, file: f, line: int32(pl.Line + i), text: l}
+			it := &item{label: lab, file: f, line: int32(at[i]), text: l}
 			if i == 0 {
 				it.start = p
 			}

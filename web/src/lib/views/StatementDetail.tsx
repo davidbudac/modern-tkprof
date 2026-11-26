@@ -420,7 +420,7 @@ function PlanSection({ doc, hash, dumps, view, onView, flowScale, onFlowScale, s
   const findings = useMemo(() => planFindings(rows), [rows])
   const [focus, setFocus] = useState<{ id: number; seq: number } | null>(null)
   useEffect(() => setFocus(null), [plan])
-  // the dump picked above, its split pieces joined (data/sqlheat.ts heatDump), against the execution it covers
+  // the dump picked above against the execution it covers
   const heat = useSqlHeat(doc, plan, view === 'heat')
   const [link, setLink] = useState<Link>({ state: 'pending' })
   useEffect(() => {

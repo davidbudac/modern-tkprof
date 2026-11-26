@@ -5,9 +5,9 @@ import { fileURLToPath } from 'node:url'
 import { TraceDoc } from './doc'
 import { LocalSource } from './source'
 import type { ExecTrace, TraceCall, TraceWait } from './exectrace'
-import { CallKind, type Event, type Plan, type PlanLine, type RawDocument } from './types'
+import { CallKind, type Event, type PlanLine, type RawDocument } from './types'
 import {
-  buildReplay, cellCenter, chaptersOf, dumpLines, edgePoint, lanesLayout, replayOf, stageLayout,
+  buildReplay, cellCenter, chaptersOf, edgePoint, lanesLayout, replayOf, stageLayout,
   type Replay, type RLine,
 } from './replay'
 
@@ -120,7 +120,7 @@ const events: Event[] = ([
 const EV = { client: 0, seq: 1, tempW: 2, tempR: 3, enq: 4 }
 
 const pl = (id: number, parentId: number, op: string, extra: Partial<PlanLine> = {}): PlanLine => ({
-  plan: 0, id, parentId, pos: 1, depth: 0, obj: 0, op, object: '', rows: 10, starts: 1, cr: 0, pr: 0, pw: 0, timeUs: 0, cost: 0, size: 0, card: 0, hasStats: true, ...extra,
+  plan: 0, line: id, id, parentId, pos: 1, depth: 0, obj: 0, op, object: '', rows: 10, starts: 1, cr: 0, pr: 0, pw: 0, timeUs: 0, cost: 0, size: 0, card: 0, hasStats: true, ...extra,
 })
 const call = (id: number, kind: number, tim: number, e: number, r = 0): TraceCall => ({
   id, owner: id, parent: -1, line: id, ctx: 0, kind, cursor: 1, stmt: 0, dep: 0, execNo: 1, c: 0, e, p: 0, cr: 0, cu: 0, r, tim, selfE: e, plh: 1,
@@ -243,15 +243,6 @@ describe('layout', () => {
     const b = { grid: null as never, x: 10, y: 20, w: 100, h: 40, cell: 10, cols: 10 }
     expect(cellCenter(b, 0)).toEqual([15, 25])
     expect(cellCenter(b, 11)).toEqual([25, 35])
-  })
-  it('a dump the model split (optimizer lines between its STAT lines) is joined; the next dump is not', () => {
-    // opt_interleaved.trc, 8a01tvd45h89r: STAT id=1 / kkeCostToTime… / id=2 / … / id=3..5: plans of 1, 1 and 3 lines
-    const lines = [pl(1, 0, 'HASH GROUP BY'), pl(2, 1, 'HASH JOIN'), pl(3, 2, 'NESTED LOOPS'), pl(4, 3, 'NESTED LOOPS'), pl(5, 4, 'STATISTICS COLLECTOR'), pl(1, 0, 'HASH GROUP BY')]
-    const plan = (id: number, line: number, first: number, n: number, cursor = 4): Plan => ({ id, line, cursor, statement: 4, planHash: 9, first, n })
-    const plans = [plan(0, 100, 0, 1), plan(1, 104, 1, 1), plan(2, 108, 2, 3), plan(3, 300, 5, 1)]
-    expect(dumpLines(plans, lines, plans[0]).map((l) => l.id)).toEqual([1, 2, 3, 4, 5])
-    expect(dumpLines(plans, lines, plans[3]).map((l) => l.id)).toEqual([1])
-    expect(dumpLines([plan(0, 100, 0, 1), plan(1, 104, 1, 1, 5)], lines, plan(0, 100, 0, 1)).map((l) => l.id)).toEqual([1]) // another cursor
   })
   it('chapters: one when nothing is on a line', () => {
     expect(chaptersOf([], [], 500)).toEqual([{ i: 0, a: 0, b: 500, key: 'all', label: 'CPU' }])

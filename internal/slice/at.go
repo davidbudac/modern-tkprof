@@ -364,8 +364,8 @@ func (s *Server) at(_ context.Context, q url.Values) (any, error) {
 		cur := ruleCursor(s.m, f, line)
 		a.Cursor, a.Stmt, a.Ctx = cur.ID, cur.Statement, cur.Context
 	case kind == trace.KindStat:
-		// STAT lines of one dump are adjacent: the dump is the last plan that
-		// starts at or before the line, the line is the one with that id=
+		// dumps do not overlap: the line's is the last plan that starts at or
+		// before it, and in it the line is the one with that id=
 		if e, ok := lastAtOrBefore(f.plans, line); ok {
 			p := &s.m.Plans[e.id]
 			if i := planLineOf(s.m, p, text); i >= 0 {
@@ -585,6 +585,24 @@ func (s *Server) bindOwner(f *fileInfo, after int64, line int, owner *model.Call
 		}
 	}
 	return nil
+}
+
+// statRuns are the runs of adjacent trace lines of plan p's STAT lines, in
+// file order: one, unless other lines sit between them (an interleaved 10053
+// trace).
+func statRuns(m *model.Model, p *model.Plan) [][2]int {
+	var out [][2]int
+	if p.First < 0 || int(p.First+p.N) > len(m.PlanLines) {
+		return nil
+	}
+	for _, l := range m.PlanLines[p.First : p.First+p.N] {
+		if n := len(out); n > 0 && l.Line == out[n-1][1]+1 {
+			out[n-1][1] = l.Line
+		} else {
+			out = append(out, [2]int{l.Line, l.Line})
+		}
+	}
+	return out
 }
 
 // planLineOf finds the index into m.PlanLines of the STAT line text within

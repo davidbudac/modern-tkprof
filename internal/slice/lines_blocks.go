@@ -45,13 +45,14 @@ func (s *Server) linesBlocks(ctx context.Context, q url.Values) (any, error) {
 	}{Blocks: [][2]int{}}
 	switch q.Get("what") {
 	case "stat":
+	plans:
 		for _, p := range f.plans {
-			if n := int(s.m.Plans[p.id].N); n > 0 {
+			for _, r := range statRuns(s.m, &s.m.Plans[p.id]) {
 				if len(out.Blocks) == maxBlocks {
 					out.Truncated = true
-					break
+					break plans
 				}
-				out.Blocks = append(out.Blocks, [2]int{p.line, p.line + n - 1})
+				out.Blocks = append(out.Blocks, r)
 			}
 		}
 	case "binds":

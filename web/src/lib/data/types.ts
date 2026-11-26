@@ -142,6 +142,8 @@ export interface Plan {
 
 export interface PlanLine {
   plan: ID
+  /** its trace line, in the file of the plan's `line` (a dump's lines need not be adjacent) */
+  line: number
   id: number
   parentId: number
   pos: number

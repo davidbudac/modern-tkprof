@@ -59,7 +59,7 @@ function planLinesOfObj(doc: TraceDoc, file: number, stmt: number, obj: number):
     if (p.line <= 0 || doc.fileOfCursor(p.cursor) !== file) continue
     for (let k = 0; k < p.n; k++) {
       const pl = doc.planLines[p.first + k]
-      if (pl && pl.obj === obj) out.push({ line: p.line + k, op: pl.op, object: pl.object, rows: pl.rows, starts: pl.starts, cr: pl.cr })
+      if (pl && pl.obj === obj) out.push({ line: pl.line, op: pl.op, object: pl.object, rows: pl.rows, starts: pl.starts, cr: pl.cr })
     }
   }
   return out

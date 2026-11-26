@@ -8,7 +8,7 @@ import { bandScale, clientSubline, defaultMaxBand, flowLayout, flowPath, nodeSub
 // Synthetic plan lines: a unit test of a pure function needs no trace file. The numbers of `hashJoin` are the STAT
 // lines 16413 to 16416 of testdata/traces/19c/io_waits.trc (stmt 22, 7r10y07tqpg98).
 const L = (id: number, parentId: number, op: string, extra: Partial<PlanLine> = {}): PlanLine => ({
-  plan: 0, id, parentId, pos: 1, depth: 0, obj: 0, op, object: '', rows: 1, starts: 1, cr: 0, pr: 0, pw: 0, timeUs: 0,
+  plan: 0, line: id, id, parentId, pos: 1, depth: 0, obj: 0, op, object: '', rows: 1, starts: 1, cr: 0, pr: 0, pw: 0, timeUs: 0,
   cost: -1, size: -1, card: -1, hasStats: true, ...extra,
 })
 

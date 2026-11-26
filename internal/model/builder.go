@@ -80,8 +80,8 @@ type Builder struct {
 	stmtByKey    map[string]ID
 	eventByName  map[string]ID
 	synthCursor  map[string]ID // synthetic cursors (XCTEND, LOB ops, RPC)
-	curPlan      ID
-	curPlanCur   uint64
+	curPlan      ID            // the plan the last STAT line went to, which the next one may continue
+	curPlanFile  int           // the file of that line
 	lastStatLine int
 	lastXctend   ID  // XCTEND that cursor-#0 waits (log file sync) belong to until the next call
 	lastDep      int // depth of the last call line: an XCTEND, which prints none, is one deeper
@@ -947,11 +947,10 @@ func (b *Builder) Wait(w trace.Wait) {
 func (b *Builder) Stat(s trace.Stat) {
 	curID := b.cursorFor(s.Cursor, 0, s.Line)
 	cur := &b.m.Cursors[curID]
-	if b.curPlan == None || b.curPlanCur != s.Cursor || s.ID == 1 || s.Line != b.lastStatLine+1 {
+	if !b.continuesPlan(curID, s) {
 		p := Plan{ID: ID(len(b.m.Plans)), Line: s.Line, Cursor: curID, Statement: cur.Statement, PLH: cur.PLH, First: int32(len(b.m.PlanLines))}
 		b.m.Plans = append(b.m.Plans, p)
-		b.curPlan = p.ID
-		b.curPlanCur = s.Cursor
+		b.curPlan, b.curPlanFile = p.ID, b.curFile
 	}
 	b.lastStatLine = s.Line
 	p := &b.m.Plans[b.curPlan]
@@ -962,7 +961,7 @@ func (b *Builder) Stat(s trace.Stat) {
 			op = strings.TrimRight(op[:i], " ")
 		}
 	}
-	pl := PlanLine{Plan: p.ID, ID: s.ID, ParentID: s.ParentID, Pos: s.Pos, Obj: s.Obj, Op: op, Object: obj,
+	pl := PlanLine{Plan: p.ID, Line: s.Line, ID: s.ID, ParentID: s.ParentID, Pos: s.Pos, Obj: s.Obj, Op: op, Object: obj,
 		Cnt: s.Cnt, Str: s.Str, CR: s.CR, PR: s.PR, PW: s.PW, TimeUs: s.TimeUs, Cost: s.Cost, Size: s.Size, Card: s.Card, HasStats: s.HasStats}
 	// depth = parent's depth + 1 (parents always precede children in STAT output)
 	for i := int(p.First); i < len(b.m.PlanLines); i++ {
@@ -973,6 +972,29 @@ func (b *Builder) Stat(s trace.Stat) {
 	}
 	b.m.PlanLines = append(b.m.PlanLines, pl)
 	p.N++
+}
+
+// continuesPlan: STAT line s of cursor instance cur goes on with the current
+// dump. A dump is one cursor's, starts at id=1 and sits in one file; its lines
+// are mostly adjacent, but other lines can come between them (the optimizer's,
+// in an interleaved 10053 trace). After such a gap the line belongs to the
+// dump when its id goes on and its parent is already in it.
+func (b *Builder) continuesPlan(cur ID, s trace.Stat) bool {
+	if b.curPlan == None || b.curPlanFile != b.curFile || s.ID == 1 {
+		return false
+	}
+	p := &b.m.Plans[b.curPlan]
+	if p.Cursor != cur {
+		return false
+	}
+	if s.Line == b.lastStatLine+1 {
+		return true
+	}
+	lines := b.m.PlanLines[p.First:] // the current plan's are the last
+	if len(lines) == 0 || s.ID <= lines[len(lines)-1].ID {
+		return false
+	}
+	return s.ParentID == 0 || slices.ContainsFunc(lines, func(l PlanLine) bool { return l.ID == s.ParentID })
 }
 
 // ---- binds ----------------------------------------------------------------

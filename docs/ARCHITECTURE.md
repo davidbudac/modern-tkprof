@@ -76,6 +76,12 @@ Rules that give the model its meaning:
   call is a child of the next depth-`d` call. Parent resources (`c`, `e`,
   `p`, `cr`, `cu`) include children; the model computes self-time to avoid
   double counting.
+* **Plans**: a plan is one STAT dump of a cursor instance, from `id=1`. Its
+  lines are mostly adjacent; across other lines (the optimizer's, in an
+  interleaved 10053 trace) a line still belongs to it when its id goes on and
+  its parent is in the dump (`Builder.continuesPlan`). Every plan line keeps
+  its own trace line (`PlanLine.Line`): readers must not count from
+  `Plan.Line`.
 * **Commits in the hierarchy**: an `XCTEND` line prints no `dep`. It is taken
   as one deeper than the call line before it (that is below the COMMIT, which
   was parsed or last run at its own depth), becomes the child of the next call
@@ -293,8 +299,8 @@ table and a note. The plan advisor stays above either; its node links select the
 
 Decisions: DESIGN § SQL heat. A third plan view beside Table and Row flow; lib only, no engine work.
 
-- **Input** (`heatInput`, `heatDump`, `heatChildren`): the statement text, the picked dump's plan lines (a split dump
-  joined with `dumpLines`, from any of its pieces) and the statement's recursive children (`StmtStats.children`,
+- **Input** (`heatInput`, `heatChildren`): the statement text, the picked dump's plan lines and the statement's
+  recursive children (`StmtStats.children`,
   `Link { statement, calls, elapsed }`, with the per-execution count from the call facts when the document has them).
 - **Cover** (`heatCover`, `heatCoverOfTrace`, `useSqlHeat`): the executions the dump covers (as many as the top row
   source's starts, the last ones of its cursor before the STAT line, Replay's `planOfExecution` rule) and their EXEC
@@ -1755,8 +1761,7 @@ A third mode of one picked execution in the statement inspector (`Binds | Dialog
 
 - Data: the Loom's `executions/trace` rows (same query key) and the plan. `planOfExecution` takes the dump of the EXEC's
   cursor and plan hash written after the EXEC and before the cursor's next EXEC (`exact`); else the nearest dump of the
-  plan hash, whose rows are not shown (`rowsKnown` false: STAT of another execution, the default `plan_stat`). A dump the
-  model split because other lines sit between its STAT lines (an interleaved 10053 trace) is joined again (`dumpLines`).
+  plan hash, whose rows are not shown (`rowsKnown` false: STAT of another execution, the default `plan_stat`).
 - Model (`buildReplay`, pure, µs from the EXEC's start; the PARSE before it is only a number): waits of the own EXEC
   and FETCHes; deeper ones are `recursive`. TEMP I/O → the line with the largest own `pw` (pw minus its children's; the
   obj# of a TEMP wait repeats the last object read), block I/O → the line with its `obj`, else only the block grid,

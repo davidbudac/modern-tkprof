@@ -186,7 +186,8 @@ func TestAtMatchesModel(t *testing.T) {
 					continue
 				}
 				for i := 0; i < int(p.N); i++ {
-					r := e.at(t, f, p.Line+i)
+					line := m.PlanLines[int(p.First)+i].Line
+					r := e.at(t, f, line)
 					if r.Kind != "stat" || r.PlanLine != int(p.First)+i || r.Stmt != int(p.Statement) {
 						t.Fatalf("plan %d line %d+%d: at = %+v, want planLine %d", p.ID, p.Line, i, r, int(p.First)+i)
 					}

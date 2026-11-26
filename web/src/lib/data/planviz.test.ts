@@ -5,7 +5,7 @@ import { MAX_LINK_CHARS, planRows, planVizUrl, type PlanRow } from './planviz'
 import type { RawDocument } from './types'
 
 const pl = (id: number, parentId: number, depth: number, op: string, extra = {}) =>
-  ({ plan: 0, id, parentId, pos: id, depth, obj: 0, op, object: '', rows: 10 * (id + 1), starts: 1, cr: 5, pr: 1, pw: 0, timeUs: 100, cost: -1, size: -1, card: -1, hasStats: true, ...extra })
+  ({ plan: 0, line: id, id, parentId, pos: id, depth, obj: 0, op, object: '', rows: 10 * (id + 1), starts: 1, cr: 5, pr: 1, pw: 0, timeUs: 100, cost: -1, size: -1, card: -1, hasStats: true, ...extra })
 
 async function tinyDoc(): Promise<TraceDoc> {
   const raw = {

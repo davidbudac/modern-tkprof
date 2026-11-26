@@ -305,6 +305,7 @@ type Plan struct {
 // PlanLine is one STAT line.
 type PlanLine struct {
 	Plan     ID     `json:"plan"`
+	Line     int    `json:"line"` // its trace line, in the file of the plan's Line (a dump's lines need not be adjacent)
 	ID       int    `json:"id"`
 	ParentID int    `json:"parentId"`
 	Pos      int    `json:"pos"`

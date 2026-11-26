@@ -180,7 +180,8 @@ per snapshot, `api/doc?rev=` long poll (ARCHITECTURE § Engine mode).
   waits have a `file#` p1 that is not a datafile (`Event.IsFileP1` skips them).
 - **Wait classes** come from `internal/ref/data/event_name_19c.csv` (a real `v$event_name` export); idle
   detection uses the `Idle` class.
-- **Cache formats**: a persisted struct change bumps its version and `engine.CacheIndexFormat` (now 9; 9 is the
+- **Cache formats**: a persisted struct change bumps its version and `engine.CacheIndexFormat` (now 12; 10 to 12 are the 2026-11-26 model fixes under Open: commit parents, CRLF statement texts, whole STAT dumps
+  with `model.PersistVersion` 5; 9 was the
   line kind `diagnostic` and the section ranges of a file in `FileEntry.Sections`, `model.PersistVersion` 4; 8 was the
   line kind `optimizer` and `FileEntry.Dumps`); see CLAUDE.md.
 - **An engine session's model has no waits** (aggregation-only): anything that needs the waits' obj# or file#
@@ -320,6 +321,9 @@ CLI: 118 MB trace → text report 0.61 s / 220 MB RSS, HTML 12.7 MB in 0.78 s; 1
   with LF or CRLF counted either way (some GRANTs), and those still run on; a possible rule is to accept an
   `END OF STMT` that the cursor's own `PARSE #n:` follows (parser, `cut.sqlText` and `peek` alike). A `PARSE ERROR`
   text in a CRLF file is still counted without the `\r` (it ends at the next trace line).
+- **STAT dumps split by other lines, fixed** (2026-11-26, unreleased; ARCHITECTURE § Plans): an interleaved 10053
+  trace's dump is one plan again in every view, and each plan line keeps its trace line (`model.PersistVersion` 5,
+  cache format 12). Replay and SQL heat no longer join pieces themselves.
 - `TestFixtureKindsUnchanged` (`internal/trace/section_test.go`) skips the gitignored `antognini_*` traces, which
   made it fail on any machine that has them.
 
@@ -329,12 +333,6 @@ CLI: 118 MB trace → text report 0.61 s / 220 MB RSS, HTML 12.7 MB in 0.78 s; 1
   from the engine (an extended `executions/trace`); the prototype's PX scene (`px_io.trc` + 4 slave traces) shows the
   drawing: a grid coloured by slave, dots per slave on the slave lines, a lane per slave; `PX SEND QC` has no STAT in
   the slaves and takes its child's counts.
-- **A STAT dump split by other lines** (model bug, all views): `model.Builder.Stat` starts a new plan when STAT lines are
-  not adjacent, and an interleaved 10053 trace writes optimizer lines between them, so `opt_interleaved.trc`'s
-  8a01tvd45h89r has nine "plans" of one to three lines (Row flow and the plan table show them so). Replay joins them
-  (`dumpLines`). The fix: group by ids (another cursor, id=1, an id that does not grow, a parent not in the dump),
-  bump `engine.CacheIndexFormat`, fix `TestAtMatchesModel`'s `p.Line+i` (the slice's `at` already matches by id); and
-  give `PlanLine` its own trace line (persisted: `model.PersistVersion`), as Row flow links a line to `plan.line + index`.
 - Not tried: a long execution with hundreds of thousands of waits (the lanes paint every wait once), 21c and 23ai
   fixtures, WebKitGTK and WebView2 frame rates.
 

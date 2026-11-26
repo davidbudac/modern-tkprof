@@ -13,7 +13,6 @@ import { CallKind, type ID, type Plan, type PlanLine } from './types'
 import type { ExecTrace } from './exectrace'
 import { formatSql, sqlTokens, type SqlTokenType } from './optsql'
 import { opText, rowFlow, type FlowNode, type RowFlow } from './rowflow'
-import { dumpLines } from './replay'
 import { fmtDur } from './format'
 
 // ---- the result
@@ -49,7 +48,7 @@ export interface HeatCover {
 
 export interface HeatInput {
   text: string
-  /** one STAT dump in dump order (a dump the model split joined again: `heatDump`) */
+  /** one STAT dump in dump order */
   lines: readonly PlanLine[]
   /** the statement's executions (the denominator of "times per execution") */
   executions: number
@@ -1459,28 +1458,6 @@ function accountOf(h: HeatOk, names: string, where: Where): string[] {
 // ---- from the document
 
 /**
- * The STAT lines of the dump `plan` belongs to. The model starts a plan wherever STAT lines are not adjacent (an interleaved
- * 10053 trace splits a dump: HANDOFF § Plan replay); `dumpLines` (replay.ts) joins the pieces that follow a dump's head.
- * A piece that is not a head (its first id is not 1) is walked back to its head first.
- */
-export function heatDump(doc: TraceDoc, plan: Plan): PlanLine[] {
-  const all = doc.plansOf(plan.statement)
-  const own = doc.planLines.slice(plan.first, plan.first + plan.n)
-  let k = all.indexOf(plan)
-  if (k < 0) return own
-  let start = plan
-  while (k > 0 && doc.planLines[start.first]?.id !== 1) {
-    const prev = all[k - 1]
-    if (prev.cursor !== plan.cursor || prev.planHash !== plan.planHash) break
-    start = prev
-    k--
-  }
-  if (doc.planLines[start.first]?.id !== 1) return own
-  const joined = dumpLines(all, doc.planLines, start)
-  return start === plan || joined.includes(doc.planLines[plan.first]) ? joined : own
-}
-
-/**
  * The recursive statements run under `stmt` that are not dictionary SQL (parsed by SYS), the slowest first, with their
  * executions under it: counted from the call facts when the document has them, else the statement's executions when it
  * runs under this statement only, else its executions shared out by calls (inexact).
@@ -1587,7 +1564,7 @@ export function heatCoverOfTrace(trace: ExecTrace, userStmts: readonly ID[]): He
 export function heatInput(doc: TraceDoc, plan: Plan): HeatInput {
   const text = doc.statements[plan.statement]?.text ?? ''
   try {
-    const lines = heatDump(doc, plan)
+    const lines = doc.planLines.slice(plan.first, plan.first + plan.n)
     const children = heatChildren(doc, plan.statement)
     return {
       text, lines, children,

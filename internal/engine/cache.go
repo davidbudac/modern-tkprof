@@ -90,8 +90,10 @@ import (
 // call, so a session cached before holds other parents, depths and self times
 // for a trace with commits. 11: in a CRLF trace the \r that len= counts no
 // longer makes a statement text run past its END OF STMT, so such a session
-// cached before holds other statements, calls and waits.
-const CacheIndexFormat = 11
+// cached before holds other statements, calls and waits. 12: STAT lines with
+// other lines between them are one plan, and a plan line keeps its own trace
+// line (model.PersistVersion 5).
+const CacheIndexFormat = 12
 
 // cacheParts are the versions of the files of an entry at CacheIndexFormat.
 var cacheParts = map[string]int{

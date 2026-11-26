@@ -19,7 +19,7 @@ import (
 // (TestPersistCoversEveryField counts the fields to catch a forgotten one).
 
 // PersistVersion is the format version of Encode.
-const PersistVersion = 4 // 4: per-file diagnostic dump sections; 3: per-file optimizer (10053) dumps; 2: per-file truncation status
+const PersistVersion = 5 // 5: a plan line's own trace line; 4: per-file diagnostic dump sections; 3: per-file optimizer (10053) dumps; 2: per-file truncation status
 
 const persistMagic = "MTKPDIMS"
 
@@ -74,7 +74,7 @@ func (m *Model) indexRef() {
 // (TestPersistCoversEveryField compares them with the structs).
 var persistFields = map[string]int{
 	"Model": 29, "FileInfo": 14, "FileEntry": 22, "DumpRange": 4, "SectionRange": 4, "KV": 2, "Span": 6, "Statement": 14, "Cursor": 13,
-	"Event": 7, "Context": 13, "Plan": 8, "PlanLine": 23, "Transaction": 8, "ErrorEvent": 10,
+	"Event": 7, "Context": 13, "Plan": 8, "PlanLine": 24, "Transaction": 8, "ErrorEvent": 10,
 	"Marker": 5, "UnknownLine": 2, "Diagnostics": 11, "RefObject": 5, "RefFile": 4, "RefUser": 2,
 	"ctxExtent": 3, "wallAnchor": 3,
 }
@@ -250,6 +250,7 @@ func codePlan(c *binfmt.Codec, p *Plan) {
 
 func codePlanLine(c *binfmt.Codec, l *PlanLine) {
 	id(c, &l.Plan)
+	c.Int(&l.Line)
 	c.Int(&l.ID)
 	c.Int(&l.ParentID)
 	c.Int(&l.Pos)

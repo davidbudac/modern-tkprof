@@ -256,28 +256,42 @@ func TestLinesBlocksBinds(t *testing.T) {
 }
 
 func TestLinesBlocksStat(t *testing.T) {
-	e := newLineEnv(t, []string{traces + "basic_binds.trc"})
-	got := e.blocks(t, 0, "stat")
-	var want [][2]int
-	for _, p := range e.full.Plans {
-		want = append(want, [2]int{p.Line, p.Line + int(p.N) - 1})
-	}
-	sort.Slice(want, func(i, j int) bool { return want[i][0] < want[j][0] })
-	if len(want) == 0 {
-		t.Fatal("fixture has no plans")
-	}
-	if fmt.Sprint(got.Blocks) != fmt.Sprint(want) || got.Truncated {
-		t.Fatalf("stat blocks %v, want %v", got.Blocks, want)
-	}
-	// every block is made of STAT lines
-	for _, b := range got.Blocks {
-		raw, err := e.lis[0].Read(b[0], b[1]-b[0]+1)
-		if err != nil {
-			t.Fatal(err)
+	// one block per run of a dump's lines: opt_interleaved has optimizer lines
+	// between the STAT lines of a dump
+	for _, name := range []string{"basic_binds.trc", "opt_interleaved.trc"} {
+		e := newLineEnv(t, []string{traces + name})
+		got := e.blocks(t, 0, "stat")
+		var want [][2]int
+		for _, p := range e.full.Plans {
+			lines := e.full.PlanLines[p.First : p.First+p.N]
+			from := 0
+			for i := 1; i <= len(lines); i++ {
+				if i == len(lines) || lines[i].Line != lines[i-1].Line+1 {
+					want = append(want, [2]int{lines[from].Line, lines[i-1].Line})
+					from = i
+				}
+			}
 		}
-		for _, l := range splitLines(raw) {
-			if k, _ := trace.Classify(l, false); k != trace.KindStat {
-				t.Fatalf("stat block %v holds %q", b, l)
+		sort.Slice(want, func(i, j int) bool { return want[i][0] < want[j][0] })
+		if len(want) == 0 {
+			t.Fatal("fixture has no plans")
+		}
+		if name == "opt_interleaved.trc" && len(want) <= len(e.full.Plans) {
+			t.Fatalf("%s: %d blocks for %d plans: no dump is split", name, len(want), len(e.full.Plans))
+		}
+		if fmt.Sprint(got.Blocks) != fmt.Sprint(want) || got.Truncated {
+			t.Fatalf("%s stat blocks %v, want %v", name, got.Blocks, want)
+		}
+		// every block is made of STAT lines
+		for _, b := range got.Blocks {
+			raw, err := e.lis[0].Read(b[0], b[1]-b[0]+1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, l := range splitLines(raw) {
+				if k, _ := trace.Classify(l, false); k != trace.KindStat {
+					t.Fatalf("%s stat block %v holds %q", name, b, l)
+				}
 			}
 		}
 	}

@@ -3,7 +3,7 @@ import { containerNames, DEFAULT_NAME_OPTS, nameOptsOf, objectNames, objParts, o
 import type { Marker, PlanLine } from './types'
 
 const line = (obj: number, op: string, object: string): PlanLine => ({
-  plan: 0, id: 1, parentId: 0, pos: 1, depth: 0, obj, op, object, rows: 0, starts: 0, cr: 0, pr: 0, pw: 0, timeUs: 0, cost: 0, size: 0, card: 0, hasStats: true,
+  plan: 0, line: 1, id: 1, parentId: 0, pos: 1, depth: 0, obj, op, object, rows: 0, starts: 0, cr: 0, pr: 0, pw: 0, timeUs: 0, cost: 0, size: 0, card: 0, hasStats: true,
 })
 
 describe('object names', () => {

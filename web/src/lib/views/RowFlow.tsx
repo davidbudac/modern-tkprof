@@ -173,7 +173,7 @@ export function RowFlow({ doc, plan, lines, scale, onScale, focus }: {
       {sel && (
         <p className="rf-selbar small">
           <b>{sel.line.id} {sel.index < 0 ? 'STATEMENT' : opText(sel.line)}</b>: its path to the client and its subtree
-          {sel.index >= 0 && <> · STAT at <LineRef line={plan.line + sel.index} file={doc.fileOfCursor(plan.cursor)} /></>}
+          {sel.index >= 0 && <> · STAT at <LineRef line={sel.line.line} file={doc.fileOfCursor(plan.cursor)} /></>}
           {' · '}<button type="button" className="link" onClick={() => setSel(null)}>clear</button> <span className="muted">(Esc)</span>
         </p>
       )}
@@ -220,7 +220,7 @@ function FlowPopover({ doc, plan, node, totalUs, anchor, onClose, onEnter, onLea
         {facts.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
       </dl>
       <p className="rf-pop-line small">
-        {node.index >= 0 ? <>STAT at <LineRef line={plan.line + node.index} file={doc.fileOfCursor(plan.cursor)} /></> : 'not in the trace: the statement line (id 0) the top-level row sources hang off'}
+        {node.index >= 0 ? <>STAT at <LineRef line={node.line.line} file={doc.fileOfCursor(plan.cursor)} /></> : 'not in the trace: the statement line (id 0) the top-level row sources hang off'}
       </p>
     </div>,
     document.body,

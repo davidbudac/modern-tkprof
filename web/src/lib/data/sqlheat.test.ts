@@ -4,16 +4,16 @@ import { gunzipSync } from 'node:zlib'
 import { fileURLToPath } from 'node:url'
 import { TraceDoc } from './doc'
 import { formatSql } from './optsql'
-import type { Plan, PlanLine, RawDocument } from './types'
+import type { PlanLine, RawDocument } from './types'
 import { LocalSource } from './source'
-import { dumpExecutions, heatChildren, heatCoverOfTrace, heatDump, heatInput, heatTint, HEAT_MIN_SHARE, sqlHeat, type HeatChild, type HeatCover, type HeatOk, type SqlHeat } from './sqlheat'
+import { dumpExecutions, heatChildren, heatCoverOfTrace, heatInput, heatTint, HEAT_MIN_SHARE, sqlHeat, type HeatChild, type HeatCover, type HeatOk, type SqlHeat } from './sqlheat'
 
 const dir = fileURLToPath(new URL('./testdata/', import.meta.url))
 const load = (f: string) => TraceDoc.fromRaw((JSON.parse(gunzipSync(readFileSync(dir + f)).toString('utf8')) as { doc: RawDocument }).doc)
 
 // Synthetic plan lines for the rules (a unit test of a pure function needs no trace file); names and numbers are invented.
 const L = (id: number, parentId: number, op: string, extra: Partial<PlanLine> = {}): PlanLine => ({
-  plan: 0, id, parentId, pos: 1, depth: 0, obj: 0, op, object: '', rows: 1, starts: 1, cr: 0, pr: 0, pw: 0, timeUs: 0,
+  plan: 0, line: id, id, parentId, pos: 1, depth: 0, obj: 0, op, object: '', rows: 1, starts: 1, cr: 0, pr: 0, pw: 0, timeUs: 0,
   cost: -1, size: -1, card: -1, hasStats: true, ...extra,
 })
 const heat = (text: string, lines: PlanLine[], children: HeatChild[] = []): SqlHeat => sqlHeat({ text, lines, executions: 1, children })
@@ -502,18 +502,6 @@ describe('heatTint', () => {
     expect(heatTint(HEAT_MIN_SHARE / 2)).toBe(0)
     expect(heatTint(0.01)).toBeCloseTo(8.47, 6)
     expect(heatTint(1)).toBe(55)
-  })
-})
-
-describe('heatDump', () => {
-  // a dump the model split in three (an interleaved 10053 trace), and the next dump of the same cursor
-  const lines = [L(1, 0, 'A'), L(2, 1, 'B'), L(3, 2, 'C'), L(4, 3, 'D'), L(5, 1, 'E'), L(1, 0, 'A')]
-  const plan = (id: number, first: number, n: number): Plan => ({ id, line: 100 + first, cursor: 0, statement: 0, planHash: 7, first, n })
-  const plans = [plan(0, 0, 2), plan(1, 2, 2), plan(2, 4, 1), plan(3, 5, 1)]
-  const doc = { plansOf: () => plans, planLines: lines } as unknown as TraceDoc
-  it('joins the pieces, from the head or from any piece', () => {
-    for (const p of plans.slice(0, 3)) expect(heatDump(doc, p).map((l) => l.op)).toEqual(['A', 'B', 'C', 'D', 'E'])
-    expect(heatDump(doc, plans[3]).map((l) => l.op)).toEqual(['A'])
   })
 })
 
