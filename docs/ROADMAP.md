@@ -45,14 +45,14 @@ Implemented in the desktop and its pinned engine, beyond the original core list:
   pending scope queries no longer reuse unrelated scope totals. Window actions appear once.
 - Opt-in investigation backups (notes/bookmarks, selected settings and workspace references),
   and accessible tab reordering in the desktop.
-- The 10053 reader (2026-11-11, `docs/PLAN-10053.md`, unreleased): optimizer traces (event 10053) open in a tab of
+- The 10053 reader (2026-11-11, `docs/PLAN-10053.md`, v0.8.0): optimizer traces (event 10053) open in a tab of
   their own with a view of their own (outline in file order, Formatted | Raw text, landmarks, folds, costing runs,
   SQL versions with a diff, the final plan, a sourced guide, search); the CLI prints a text digest and writes the
   standalone HTML; a statement of a 10046 tab and a dump of the same sql_id jump to each other. 19c is tested; an
   interleaved file (10046 and 10053 together) still opens as a 10046 trace with a note, and since the dump reader can
   be opened as 10053 on request. A reader: it computes nothing from the costs; since 2026-11-19 its Search map
   draws one costing run's join-order search from the printed costs.
-- The dump reader (2026-11-18, `docs/PLAN-DIAG.md`, unreleased, on `main` since 2026-11-18): the
+- The dump reader (2026-11-18, `docs/PLAN-DIAG.md`, v0.9.0): the
   diagnostic dumps Oracle writes to trace files (heap and PGA memory dumps, errorstacks, process and system state,
   hang analysis, deadlock graphs, incident files) open in a *dump* tab with an outline on demand, the paged text and
   a computed reading per kind (a heap's sums checked against the dump's own totals; the call stack; the process; the

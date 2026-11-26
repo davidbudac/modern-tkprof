@@ -1,7 +1,7 @@
 # Diagnostic dumps: plan
 
 Written 2026-11-17. Built on 2026-11-17 and 18 (stages 1 to 7, see the Log) on the branch
-`t3/oracle-trace-dump-support`, merged to `main` on 2026-11-18 after v0.8.0, unreleased. The owner set the frame on 2026-11-17: 10046 and 10053 stay the primary
+`t3/oracle-trace-dump-support`, merged to `main` on 2026-11-18 after v0.8.0, released in v0.9.0. The owner set the frame on 2026-11-17: 10046 and 10053 stay the primary
 formats, everything here is a best-effort add-on; computed views are allowed (unlike the 10053 reader); there
 are no real incident or systemstate files to work from, so the lab and public samples are the only sources.
 

@@ -1,4 +1,4 @@
-# Handoff — state of mtkprof on 2026-11-19
+# Handoff — state of mtkprof on 2026-11-26
 
 Read this, then `docs/DESIGN.md` (the decisions), `docs/ARCHITECTURE.md` (how the code is shaped) and
 `docs/trace-format-19c.md` (what the parser must accept). Desktop: `desktop/CLAUDE.md`, the user guide
@@ -14,15 +14,16 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
 - `davidbudac/modern-tkprof` is **public**, `main` pushed. One repository, two clients (since 2026-11-02;
   `davidbudac/mtkprof-desktop` is archived): engine + CLI at the root, `web/` (CLI UI and the shared lib
   `web/src/lib`), `desktop/` (Electron since v0.7.0; Tauri 2 until `tauri-final`, see below). One version and one tag for both.
-- Latest release **v0.9.0** (2026-11-19): the dump reader, SQL heat and the Search map. CLI binaries, the
+- Latest release **v0.9.1** (2026-11-26): the keychain prompt after a macOS update gone (cookie-encryption fuse
+  off), *Context* and *Recursive statements* at the bottom of the statement detail, leftover *Lines* labels now
+  *Trace*. Notes `docs/releases/v0.9.1.md`. Before it **v0.9.0** (2026-11-19): the dump reader, SQL heat and the Search map. CLI binaries, the
   installers (DMG arm64/x64, deb, AppImage, NSIS) and the Tauri bridge (`.app.tar.gz` per arch and `latest.json`,
   signed with `~/.tauri/mtkprof-updater.key`; no Windows entry) in one GitHub release; notes
   `docs/releases/v0.9.0.md`. Before it: v0.8.0 (2026-11-18, the 10053 reader and Plan replay; Windows unsmoked), v0.7.0 (2026-11-09, from `36f1e14`, PR #16), the first with the Electron app.
 - **2026-11-08 desktop review round** (`docs/REVIEW-DESKTOP-PERFORMANCE-UX-2026-11-08.md`): 14 findings on
   transitions, work preservation, opening, prompts, keyboard and the Cut view, all fixed on `main` after v0.6.0 in one
   multi-agent run (five parallel worktrees, reviewed, merged); the tracking table there has the evidence per finding,
-  DESIGN § Transitions and § Cut the decisions. Unreleased. Anyone running the Tauri app or the `verify-mtkprof` skill
-  needs `pnpm build:engine` in `desktop/` first: the sidecar binary is gitignored and predates the engine changes.
+  DESIGN § Transitions and § Cut the decisions. Released in **v0.7.0**.
 - **Electron shell, v0.7.0** (2026-11-09; DESIGN § Desktop app; the last Tauri commit is tag `tauri-final`):
   `desktop/src-tauri` (Rust) replaced by `desktop/electron/` (TypeScript main process, preload bridge
   `window.mtkprof`, esbuild), packaged by electron-builder (`electron-builder.yml`); the UI reaches the shell
@@ -53,7 +54,7 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
   the desktop lists them with a quick peek (`internal/peek`, `POST /engine/files`, `POST /engine/peek`)
   and opens what the user picks. Cutting from the picker before loading (for very large files) is the
   agreed next step, not started. With it: the 11g marker fix (`*** SESSION ID:(15.1335) 2013-05-10
-  07:26:55.095` kept the time in the value) and `CacheIndexFormat` 7. Unreleased.
+  07:26:55.095` kept the time in the value) and `CacheIndexFormat` 7. Released in **v0.7.0**.
 - **The 10053 reader** (2026-11-11; DESIGN § The 10053 reader, `docs/PLAN-10053.md`, ARCHITECTURE § The 10053 reader,
   DESKTOP § The 10053 view; format `docs/trace-format-10053.md`; mock-up `docs/mockups/10053-reader/`). Optimizer
   (event 10053) traces are an input: a file of dumps and no 10046 record opens in a tab of its own with the 10053
@@ -367,7 +368,7 @@ Released in v0.8.0; see "Where things stand". Open:
 
 ### The dump reader (2026-11-18; DESIGN § Diagnostic dumps, `docs/PLAN-DIAG.md`)
 
-Built and unreleased, on `main`; see "Where things stand". Open:
+Released in v0.9.0; see "Where things stand". Open:
 
 - **Not verified** (format reference § Not verified): a real ORA-04030 or ORA-04036 trace (the lab fails the
   allocation with ORA-27102, an ORA-06544 incident; the memory blocks are read from `pga_summary`, and that an
