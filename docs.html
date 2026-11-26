@@ -54,7 +54,7 @@
   <ul>
     <li><a href="#desktop-install">Install and first start</a></li>
     <li><a href="#workspace">Workspace</a></li>
-    <li><a href="#desktop-views">Lines, notes, reports</a></li>
+    <li><a href="#desktop-views">Trace, notes, reports</a></li>
     <li><a href="#library">Library</a></li>
     <li><a href="#connections">Connections</a></li>
     <li><a href="#settings">Settings and files</a></li>
@@ -151,7 +151,7 @@ mtkprof open   trace.trc                         <span class="c"># open it in th
     <p><strong>Open a trace.</strong> On the <strong>+</strong> tab, choose <em>Open files…</em> or <em>Open folder…</em>, drop files on the window, or paste a path. Double-clicking a <code>.trc</code> file works too, and so does <code>mtkprof open trace.trc</code> if you have the CLI installed. Files you pick together open as one trace set in one tab.</p>
   </li>
   <li>
-    <p><strong>Read it.</strong> The tab has the same views as the interactive report (<em>Overview</em>, <em>Statements</em>, <em>Waits</em>, <em>Timeline</em>, <em>Pivot</em> and more), plus <em>Lines</em>, the raw trace file. Every “line N” link opens Lines at that line, and <kbd>b</kbd> bookmarks a line. Notes you write stay with the trace's content, not its file name.</p>
+    <p><strong>Read it.</strong> The tab has the same views as the interactive report (<em>Overview</em>, <em>Statements</em>, <em>Waits</em>, <em>Timeline</em>, <em>Pivot</em> and more), plus <em>Trace</em>, the raw trace file. Every “line N” link opens Trace at that line, and <kbd>b</kbd> bookmarks a line. Notes you write stay with the trace's content, not its file name.</p>
   </li>
   <li>
     <p><strong>Fetch traces from a server.</strong> <em>Connections</em> (top right) keeps ssh hosts and Oracle logins. Over ssh, browse the trace directories and <em>Fetch</em> files or <em>Follow</em> a growing one as a live tab. With an Oracle login, switch tracing on for a session and list the trace files. Passwords are asked for when a connection is used and are never stored on disk. See <a href="#connections">Connections</a>.</p>
@@ -164,7 +164,7 @@ mtkprof open   trace.trc                         <span class="c"># open it in th
 
 <h3>The command-line binary</h3>
 <p>One command for every Unix (Linux, macOS, AIX, Solaris): it picks the binary for your OS and CPU, checks it against <code>SHA256SUMS</code> and installs it as <code>mtkprof</code> in <code>/usr/local/bin</code> (or <code>~/.local/bin</code> without write access). It has no dependencies (pure Go, no cgo).</p>
-<pre><span class="c"># curl | sh, all Unix systems; set MTKPROF_VERSION=v0.7.0 or MTKPROF_LITE=1 to choose the release</span>
+<pre><span class="c"># curl | sh, all Unix systems; set MTKPROF_VERSION=v0.9.1 or MTKPROF_LITE=1 to choose the release</span>
 curl -fsSL https://raw.githubusercontent.com/davidbudac/modern-tkprof/main/install.sh | sh
 mtkprof version</pre>
 <p>Or download the binary for your platform from the <a href="https://github.com/davidbudac/modern-tkprof/releases">releases page</a>, check it against <code>SHA256SUMS</code>, make it executable and put it on your <code>PATH</code> or next to the trace:</p>
@@ -463,7 +463,7 @@ claude mcp add -s user mtkprof -- mtkprof mcp -binds keep  <span class="c"># sho
 
 <!-- ================================================================ -->
 <h2 id="desktop-install">Desktop app: install and first start<a class="anchor" href="#desktop-install" aria-label="Link to this section">#</a></h2>
-<p>The desktop app opens traces in tabs with the same views as the interactive report, plus <strong>Lines</strong>, <strong>Notes</strong>, <strong>Reports</strong>, a <strong>Library</strong> of saved pivots and <strong>Connections</strong>. It is a desktop shell (Electron) that runs the mtkprof engine as a local background process.</p>
+<p>The desktop app opens traces in tabs with the same views as the interactive report, plus <strong>Trace</strong>, <strong>Notes</strong>, <strong>Reports</strong>, a <strong>Library</strong> of saved pivots and <strong>Connections</strong>. It is a desktop shell (Electron) that runs the mtkprof engine as a local background process.</p>
 <figure class="shot"><img src="img/desktop-dark.webp" width="2000" height="1255" loading="lazy" alt="The desktop app on macOS."></figure>
 <div class="table-wrap"><table>
   <thead><tr><th>System</th><th>File</th><th>Notes</th></tr></thead>
@@ -498,12 +498,12 @@ claude mcp add -s user mtkprof -- mtkprof mcp -binds keep  <span class="c"># sho
 </ul>
 <p>A file of optimizer (10053) dumps opens in a tab of its own with the <a href="#opt">10053 view</a>; in a folder, its row is tagged <em>10053</em> and counts its dumps; a selection with 10046 files opens the 10046 files as one set and the 10053 file in a tab of its own. A file of diagnostic dumps opens in a <em>dump</em> tab with the <a href="#diag">dump reader</a>; the folder's <em>Show</em> filter lists such files with <em>Also dump files</em> or <em>All files</em> (by default it lists the SQL and optimizer traces).</p>
 <p>From outside the app: double-click a <code>.trc</code> file (the installers register the extension), use <em>Open With → mtkprof</em>, drop files on the Dock icon, or run <code>mtkprof open a.trc b.trc</code> / <code>mtkprof open dir/</code> in a terminal. A set that is already open just gets its tab shown.</p>
-<p>While a trace opens its tab shows the phase, bytes and percent, and <em>Cancel</em>. Each tab keeps its own selection, filters, time window and Lines position. Live tabs refresh on their own about once a second while the file grows. On the next start the app reopens the tabs of the last run from the cache; if the engine dies it is restarted and the tabs come back where they were.</p>
+<p>While a trace opens its tab shows the phase, bytes and percent, and <em>Cancel</em>. Each tab keeps its own selection, filters, time window and Trace position. Live tabs refresh on their own about once a second while the file grows. On the next start the app reopens the tabs of the last run from the cache; if the engine dies it is restarted and the tabs come back where they were.</p>
 
 <!-- ================================================================ -->
-<h2 id="desktop-views">Lines, notes and reports<a class="anchor" href="#desktop-views" aria-label="Link to this section">#</a></h2>
-<h3>Lines</h3>
-<p>The raw trace file, paged, with line kinds colored, gutter marks for the selected statement, the object at the clicked line, streaming search, jump to time, and a file selector for sets. Every "line N" link in the views opens Lines at that line (<kbd>Shift</kbd>+click opens a small line drawer instead). <kbd>b</kbd> bookmarks a line. From a time window, <em>Lines</em> jumps to the window's first line and marks its lines in the gutter.</p>
+<h2 id="desktop-views">Trace, notes and reports<a class="anchor" href="#desktop-views" aria-label="Link to this section">#</a></h2>
+<h3>Trace</h3>
+<p>The raw trace file, paged, with line kinds colored, gutter marks for the selected statement, the object at the clicked line, streaming search, jump to time, and a file selector for sets. Every "line N" link in the views opens Trace at that line (<kbd>Shift</kbd>+click opens a small line drawer instead). <kbd>b</kbd> bookmarks a line. From a time window, <em>Trace</em> jumps to the window's first line and marks its lines in the gutter.</p>
 <p><strong>Raw and Formatted.</strong> The switch at the left of the trace bar turns the raw text into a table, still one row per trace line, so line numbers, search, bookmarks and folds work in both. Each row shows the time of the line, the cursor's lane (a colored band, with the SQL ID on its first row and &#8627;n for recursive SQL at depth n), its duration, what the line is (EXEC, WAIT, Bind#3 and so on), its detail and the wall clock. A plan dump becomes one table under its own header row, with the columns of DBMS_XPLAN (Operation, Starts, E-Rows, A-Rows, Cost, A-Time, Buffers) and a bar for each operation's share of the time; an estimate ten times or more off is marked. A BINDS block becomes a table of variable, value and type. <kbd>l</kbd> or a chip in the overview highlights one statement.</p>
 <p><strong>Measuring between lines.</strong> Pin a line with the &Delta; mark and every other row reads its distance from it, so &Delta; = 0 sits on the pinned row. <kbd>&#8984;</kbd>/<kbd>Ctrl</kbd>+click adds a line to the selection or removes it, <kbd>Shift</kbd>+click extends the selection from it, the status bar sums the selected lines and <kbd>y</kbd> copies them all. Lines with <code>tim=0</code> carry no time, so they are left out of the clock, the &Delta; and the gaps.</p>
 <h3>Notes and bookmarks</h3>
@@ -514,7 +514,7 @@ claude mcp add -s user mtkprof -- mtkprof mcp -binds keep  <span class="c"># sho
     <tr><td>Statement</td><td><em>✎ Add note</em> next to <em>Copy SQL</em></td></tr>
     <tr><td>Execution</td><td>the ✎ column of the executions table</td></tr>
     <tr><td>Time window</td><td>set a window, then <em>✎ Annotate window</em>; window notes are chips above the timeline</td></tr>
-    <tr><td>Line</td><td><em>✎ Note</em> in the Lines toolbar (also bookmarks the line)</td></tr>
+    <tr><td>Line</td><td><em>✎ Note</em> in the Trace toolbar (also bookmarks the line)</td></tr>
   </tbody>
 </table></div>
 <p>The <strong>Notes</strong> view lists them with links back. Export as Markdown (a readable summary) or JSON; import JSON to merge, also from another trace.</p>
@@ -558,7 +558,7 @@ claude mcp add -s user mtkprof -- mtkprof mcp -binds keep  <span class="c"># sho
     <tr><td>Theme</td><td>system, light or dark</td></tr>
   </tbody>
 </table></div>
-<p>Settings is a list of cards, one row per setting with a switch or a control on the right. The bind-value rows show a live preview, taken from a real trace, of what <em>Keep</em>, <em>Redact</em> and <em>None</em> do to a value; the theme tiles draw the Lines view in each scheme. A sticky index beside the page follows the section you are reading. The status header shows the engine and its protocol.</p>
+<p>Settings is a list of cards, one row per setting with a switch or a control on the right. The bind-value rows show a live preview, taken from a real trace, of what <em>Keep</em>, <em>Redact</em> and <em>None</em> do to a value; the theme tiles draw the Trace view in each scheme. A sticky index beside the page follows the section you are reading. The status header shows the engine and its protocol.</p>
 <p><em>Settings → Index cache</em> lists the entries and removes one or all. <em>About</em> shows the app, engine and protocol versions and the exact data, log and engine paths.</p>
 <div class="table-wrap"><table>
   <thead><tr><th></th><th>Windows</th><th>macOS</th><th>Linux</th></tr></thead>
