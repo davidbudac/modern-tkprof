@@ -84,14 +84,13 @@ func (b *Builder) aggXctend(x trace.Xctend, curID ID) {
 	b.closeX()
 	cur := &b.m.Cursors[curID]
 	call := Call{ID: ID(b.nCalls), Line: int32(x.Line), Kind: trace.CallXctend, Cursor: curID, Statement: cur.Statement,
-		Dep: 1, Tim: x.Tim, Parent: None, Context: b.context(), BindSet: None, Synthetic: true}
+		Dep: b.xctendDep(), Tim: x.Tim, Parent: None, Context: b.context(), BindSet: None, Synthetic: true}
 	b.nCalls++
 	wall := b.observeTim(x.Tim, x.Line)
 	b.xbuf = call
 	cp := &b.xbuf
 	b.attachWaits(0, cp, curID) // waits logged on #0 before the XCTEND
 	b.openX = cp                // ... and the ones after it (log file sync)
-	b.attachChildrenAgg(cp, 1)
 	t := Transaction{ID: ID(len(b.m.Transactions)), Line: x.Line, Rlbk: x.Rlbk, RdOnly: x.RdOnly, Tim: x.Tim, WallUs: wall, Call: None, Context: cp.Context}
 	b.m.Transactions = append(b.m.Transactions, t)
 }
@@ -103,7 +102,7 @@ func (b *Builder) closeX() {
 		return
 	}
 	b.openX = nil
-	b.completeCall(x, 1)
+	b.completeCall(x, int(x.Dep))
 }
 
 // aggWait takes a wait of an aggregate build: attached to the open XCTEND, or

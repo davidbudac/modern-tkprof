@@ -83,7 +83,8 @@ type Builder struct {
 	curPlan      ID
 	curPlanCur   uint64
 	lastStatLine int
-	lastXctend   ID // XCTEND that cursor-#0 waits (log file sync) belong to until the next call
+	lastXctend   ID  // XCTEND that cursor-#0 waits (log file sync) belong to until the next call
+	lastDep      int // depth of the last call line: an XCTEND, which prints none, is one deeper
 
 	// Aggregate build (Options.Aggregate); see Sink.
 	agg      bool
@@ -239,6 +240,7 @@ func (b *Builder) NextFile(path string, continuation bool) {
 		b.synthCursor = make(map[string]ID)
 		b.curPlan = None
 		b.lastXctend = None
+		b.lastDep = 0
 		b.ctx = Context{}
 		b.ctxID = None
 	}
@@ -747,6 +749,7 @@ func (b *Builder) Call(c trace.Call) {
 		Tim: c.Tim, Type: clampU8(c.Type), Parent: None, SelfE: c.E, SelfC: c.C, SelfP: c.P, SelfCR: c.CR, SelfCU: c.CU, Context: b.context(), BindSet: None,
 	}
 	b.observeTim(c.Tim, c.Line)
+	b.lastDep = c.Dep
 	if b.agg {
 		b.aggCall(&call, c, curID, cur)
 		return
@@ -865,12 +868,26 @@ func (b *Builder) attachChildren(call *Call, dep int) {
 			*v = 0
 		}
 	}
-	if dep > 0 {
-		b.pendingDepth[dep] = append(b.pendingDepth[dep], id)
-	} else {
-		// depth-0 calls never get a parent; nothing to keep
-	}
+	b.awaitParent(id, dep)
 }
+
+// awaitParent queues call id until the next call of a lower depth, its parent.
+func (b *Builder) awaitParent(id ID, dep int) {
+	if dep <= 0 {
+		return // depth-0 calls never get a parent
+	}
+	for len(b.pendingDepth) <= dep {
+		b.pendingDepth = append(b.pendingDepth, nil)
+	}
+	b.pendingDepth[dep] = append(b.pendingDepth[dep], id)
+}
+
+// xctendDep is the depth of an XCTEND line, which prints none: one below the
+// last call, so below the COMMIT it belongs to (parsed or last run at the
+// COMMIT's depth) and below the statements committed before it. Its parent is
+// then the next call of a lower depth, as for any recursive call. It is never
+// a parent: the deeper calls written before it belong to the same call it does.
+func (b *Builder) xctendDep() uint8 { return clampU8(b.lastDep + 1) }
 
 // ---- waits ----------------------------------------------------------------
 
@@ -1049,12 +1066,12 @@ func (b *Builder) Xctend(x trace.Xctend) {
 		return
 	}
 	call := Call{ID: ID(len(b.m.Calls)), Line: int32(x.Line), Kind: trace.CallXctend, Cursor: curID, Statement: cur.Statement,
-		Dep: 1, Tim: x.Tim, Parent: None, Context: b.context(), BindSet: None, Synthetic: true}
+		Dep: b.xctendDep(), Tim: x.Tim, Parent: None, Context: b.context(), BindSet: None, Synthetic: true}
 	wall := b.observeTim(x.Tim, x.Line)
 	b.m.Calls = append(b.m.Calls, call)
 	b.attachWaits(0, &b.m.Calls[call.ID], curID) // waits logged on #0 before the XCTEND
 	b.lastXctend = call.ID                       // ... and the ones after it (log file sync)
-	b.attachChildren(&b.m.Calls[call.ID], 1)
+	b.awaitParent(call.ID, int(call.Dep))
 	c := &b.m.Calls[call.ID]
 	t := Transaction{ID: ID(len(b.m.Transactions)), Line: x.Line, Rlbk: x.Rlbk, RdOnly: x.RdOnly, Tim: x.Tim, WallUs: wall, Call: call.ID, Context: c.Context}
 	b.m.Transactions = append(b.m.Transactions, t)

@@ -76,6 +76,12 @@ Rules that give the model its meaning:
   call is a child of the next depth-`d` call. Parent resources (`c`, `e`,
   `p`, `cr`, `cu`) include children; the model computes self-time to avoid
   double counting.
+* **Commits in the hierarchy**: an `XCTEND` line prints no `dep`. It is taken
+  as one deeper than the call line before it (that is below the COMMIT, which
+  was parsed or last run at its own depth), becomes the child of the next call
+  of a lower depth like any recursive call, and is never a parent: the calls
+  written before it belong to the same parent it does. A commit with no call
+  before it is at depth 1.
 * **Wait attribution**: `WAIT #n` lines precede the call line of cursor `n`
   they belong to. Position, not class, decides where a wait counts: one whose
   `tim` is outside the call's `[tim-e, tim]` (think time, `SQL*Net message

@@ -85,8 +85,11 @@ import (
 // lines of a diagnostic dump (heap dump, errorstack, process state, ...) are no
 // longer unknown lines (line kind "diagnostic"), and the model keeps their
 // section ranges per file (model.PersistVersion 4) and notes them, so a session
-// cached before this holds the old unknown-line counts and no note.
-const CacheIndexFormat = 9
+// cached before this holds the old unknown-line counts and no note. 10: an
+// XCTEND is one deeper than the call before it and no longer the parent of any
+// call, so a session cached before holds other parents, depths and self times
+// for a trace with commits.
+const CacheIndexFormat = 10
 
 // cacheParts are the versions of the files of an entry at CacheIndexFormat.
 var cacheParts = map[string]int{

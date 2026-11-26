@@ -306,11 +306,16 @@ CLI: 118 MB trace → text report 0.61 s / 220 MB RSS, HTML 12.7 MB in 0.78 s; 1
   final cost adds a sort after the search; a removed join); the panel shows both and asserts nothing. The dev harness
   data (`web/dev/opt-two.model.json`, `optsynth.ts`) lacks the new fields. Hundreds of orders were seen only on a
   synthetic run (724 orders); the ten-table probe with 498 orders is not a fixture.
-- **Found on the way, not fixed** (observed in exports, not traced in code): (1) an `XCTEND` of a commit inside dep=2
-  PL/SQL gets depth 1 and the dep=2 calls written before it get it as their parent, so their time is not subtracted
-  from any parent's self time (`pinx_worker_w01.trc`: 11,896 calls under 1,195 XCTENDs; a private production trace:
-  13,285 calls, 25.6 s counted twice); (2) in a private Windows trace (CRLF) a few statement texts run past `END OF
-  STMT` into the trace lines after it (the `PARSING IN CURSOR` `len=` is 555, the text before `END OF STMT` 557 bytes
+- **Commits in nested PL/SQL, fixed** (2026-11-26, unreleased; ARCHITECTURE § Commits in the hierarchy,
+  `internal/slice/xctend_test.go`): an `XCTEND` is one deeper than the call before it and is no call's parent. The
+  `pinx_worker*` traces end inside their dep=1 block, so their dep=2 calls are now orphans (counted as top level), as
+  the file says.
+- **Open, seen while fixing it**: a call's parent is the next call of a lower depth even when that call's `[tim-e, tim]`
+  cannot hold it (a CLOSE or LOB call of a few µs adopting seconds of recursive SQL, seen in an 11g trace), so those
+  self times clamp to 0 and the time counts twice. `XCTEND`s left without a containing parent follow the same rule
+  (a client's commit between calls goes to the next dep-0 call).
+- **Found on the way, not fixed** (observed in exports, not traced in code): in a private Windows trace (CRLF) a few
+  statement texts run past `END OF STMT` into the trace lines after it (the `PARSING IN CURSOR` `len=` is 555, the text before `END OF STMT` 557 bytes
   with LF endings); SQL heat then sees a text it cannot parse and falls back.
 - `TestFixtureKindsUnchanged` (`internal/trace/section_test.go`) skips the gitignored `antognini_*` traces, which
   made it fail on any machine that has them.
