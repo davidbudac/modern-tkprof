@@ -96,7 +96,8 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
   format 9 (`engine.CacheIndexFormat`, `model.PersistVersion` 4): a session cached before holds unknown-line counts
   for a file with sections.
 - Website `site/` is published on GitHub Pages (https://davidbudac.github.io/modern-tkprof/) with
-  `scripts/publish-site.sh`; `gh-pages` matches `site/` as of `85d2c95`. Ask before publishing again.
+  `scripts/publish-site.sh`; last published 2026-11-26 with the v0.9.1 downloads (the 10053 and diagnostic-dump
+  sections went live then). Ask before publishing again.
 - The plan visualizer (`~/claude_projects/ora_explain_plan_viz`) is pushed, `@davidbudac/ora-plan-core`
   included; mtkprof vendors the built package in `web/vendor/ora-plan-core` (`web/scripts/sync-core.sh`).
 
@@ -475,7 +476,6 @@ format change.
 
 Open:
 
-- `site/docs.html` is updated in the repository but not published (ask before `scripts/publish-site.sh`).
 - No real trace with millions of block I/O waits: `testdata/big` tops out at 386 k (nbstest3); the bounded counting is measured on
   generated streams only (`TestIOHotScale*`). A dbmint scenario for it would need the lab VMs (ask first).
 - Density on a packed axis (panels per object, or *packed*) bins over the segments the sample's runs give: a wait outside them is
